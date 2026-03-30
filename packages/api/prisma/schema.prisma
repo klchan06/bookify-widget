@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  cancelled
+  no_show
+  completed
+}
+
+enum EmployeeRole {
+  owner
+  admin
+  employee
+}
+
+model Salon {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  email       String   @unique
+  phone       String
+  address     String
+  city        String
+  postalCode  String
+  description String?
+  logoUrl     String?
+  website     String?
+  timezone    String   @default("Europe/Amsterdam")
+  currency    String   @default("EUR")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  settings  SalonSettings?
+  employees Employee[]
+  services  Service[]
+  bookings  Booking[]
+  customers Customer[]
+
+  @@index([slug])
+}
+
+model SalonSettings {
+  salonId                  String  @id
+  bookingLeadTime          Int     @default(2)
+  bookingWindow            Int     @default(30)
+  cancellationWindow       Int     @default(24)
+  slotDuration             Int     @default(15)
+  allowEmployeeChoice      Boolean @default(true)
+  requirePhone             Boolean @default(true)
+  confirmationEmailEnabled Boolean @default(true)
+  reminderEmailEnabled     Boolean @default(true)
+  reminderHoursBefore      Int     @default(24)
+  widgetPrimaryColor       String  @default("#6366f1")
+  widgetAccentColor        String  @default("#8b5cf6")
+  widgetBorderRadius       Int     @default(8)
+  widgetFontFamily         String  @default("Inter, sans-serif")
+
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+}
+
+model Employee {
+  id           String       @id @default(uuid())
+  salonId      String
+  name         String
+  email        String
+  phone        String?
+  avatarUrl    String?
+  role         EmployeeRole @default(employee)
+  passwordHash String?
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+
+  salon              Salon               @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  workingHours       WorkingHours[]
+  breaks             EmployeeBreak[]
+  specialDays        SpecialDay[]
+  employeeServices   EmployeeService[]
+  bookings           Booking[]
+  calendarConnection CalendarConnection?
+
+  @@unique([email, salonId])
+  @@index([salonId])
+}
+
+model WorkingHours {
+  id         String  @id @default(uuid())
+  employeeId String
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
+  isWorking  Boolean @default(true)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, dayOfWeek])
+  @@index([employeeId])
+}
+
+model EmployeeBreak {
+  id         String @id @default(uuid())
+  employeeId String
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+}
+
+model SpecialDay {
+  id         String  @id @default(uuid())
+  employeeId String
+  date       String
+  isOff      Boolean @default(true)
+  startTime  String?
+  endTime    String?
+  reason     String?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+}
+
+model Service {
+  id          String  @id @default(uuid())
+  salonId     String
+  name        String
+  description String?
+  duration    Int
+  price       Int
+  currency    String  @default("EUR")
+  category    String?
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+  createdAt   DateTime @default(now())
+
+  salon            Salon             @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  employeeServices EmployeeService[]
+  bookings         Booking[]
+
+  @@index([salonId])
+}
+
+model EmployeeService {
+  employeeId String
+  serviceId  String
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([employeeId, serviceId])
+}
+
+model Booking {
+  id           String        @id @default(uuid())
+  salonId      String
+  employeeId   String
+  serviceId    String
+  customerId   String
+  date         String
+  startTime    String
+  endTime      String
+  status       BookingStatus @default(pending)
+  notes        String?
+  cancelReason String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  salon    Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([salonId, date])
+  @@index([employeeId, date])
+  @@index([customerId])
+  @@index([status])
+}
+
+model Customer {
+  id            String   @id @default(uuid())
+  salonId       String
+  name          String
+  email         String
+  phone         String?
+  notes         String?
+  totalBookings Int      @default(0)
+  lastVisit     DateTime?
+  createdAt     DateTime @default(now())
+
+  salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@unique([email, salonId])
+  @@index([salonId])
+}
+
+model CalendarConnection {
+  id                 String   @id @default(uuid())
+  employeeId         String   @unique
+  provider           String   @default("google")
+  accessToken        String?
+  refreshToken       String?
+  externalCalendarId String?
+  syncEnabled        Boolean  @default(true)
+  lastSynced         DateTime?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
