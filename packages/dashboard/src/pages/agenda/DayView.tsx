@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import type { Booking, Employee } from '@bookify/shared';
 import { BOOKING_STATUSES } from '@bookify/shared';
@@ -18,6 +18,16 @@ function timeToMinutes(time: string): number {
   return h * 60 + m;
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isMobile;
+}
+
 export function DayView({ date, bookings, employees, onSlotClick, onBookingClick }: DayViewProps) {
   const dateStr = format(date, 'yyyy-MM-dd');
   const dayBookings = bookings.filter((b) => b.date === dateStr);
@@ -25,12 +35,104 @@ export function DayView({ date, bookings, employees, onSlotClick, onBookingClick
   const cols = showEmployees ? employees : [{ id: 'all', name: 'Alle' }];
   const SLOT_HEIGHT = 60; // px per hour
   const START_HOUR = 8;
+  const isMobile = useIsMobile();
+  const [activeEmployeeId, setActiveEmployeeId] = useState<string>(cols[0]?.id || 'all');
+
+  // Reset active employee when employees change
+  useEffect(() => {
+    if (cols.length > 0 && !cols.find((c) => c.id === activeEmployeeId)) {
+      setActiveEmployeeId(cols[0].id);
+    }
+  }, [cols, activeEmployeeId]);
 
   const getBookingsForColumn = (colId: string) => {
     if (colId === 'all') return dayBookings;
     return dayBookings.filter((b) => b.employeeId === colId);
   };
 
+  // Mobile: card-based list view with employee tabs
+  if (isMobile) {
+    const mobileBookings = showEmployees && employees.length > 1
+      ? getBookingsForColumn(activeEmployeeId)
+      : dayBookings;
+
+    const sortedBookings = [...mobileBookings].sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    return (
+      <div>
+        {/* Employee tab bar (horizontal scroll) */}
+        {showEmployees && employees.length > 1 && (
+          <div className="overflow-x-auto border-b border-gray-200 sticky top-0 bg-white z-10">
+            <div className="flex min-w-max">
+              {cols.map((col) => (
+                <button
+                  key={col.id}
+                  onClick={() => setActiveEmployeeId(col.id)}
+                  className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors min-h-[48px] ${
+                    activeEmployeeId === col.id
+                      ? 'border-brand-600 text-brand-600'
+                      : 'border-transparent text-gray-500'
+                  }`}
+                >
+                  {col.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Booking cards */}
+        <div className="divide-y divide-gray-100">
+          {sortedBookings.length === 0 ? (
+            <div className="py-8 text-center text-sm text-gray-500">
+              Geen afspraken
+            </div>
+          ) : (
+            sortedBookings.map((booking) => {
+              const statusColor = BOOKING_STATUSES[booking.status]?.color || '#3b82f6';
+              return (
+                <button
+                  key={booking.id}
+                  className="w-full text-left flex items-center gap-3 p-3 hover:bg-gray-50 active:bg-gray-100 transition-colors min-h-[56px]"
+                  onClick={() => onBookingClick(booking)}
+                >
+                  <div
+                    className="w-1 self-stretch rounded-full flex-shrink-0"
+                    style={{ backgroundColor: statusColor }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-gray-900 font-mono">
+                        {booking.startTime} - {booking.endTime}
+                      </span>
+                      <span
+                        className="text-xs px-1.5 py-0.5 rounded-full text-white"
+                        style={{ backgroundColor: statusColor }}
+                      >
+                        {BOOKING_STATUSES[booking.status]?.label || booking.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-900 truncate">{booking.customer?.name || 'Klant'}</p>
+                    <p className="text-xs text-gray-500 truncate">{booking.service?.name}</p>
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {/* Quick add button area */}
+        <button
+          className="w-full py-3 text-sm text-brand-600 font-medium hover:bg-brand-50 transition-colors border-t border-gray-200"
+          onClick={() => onSlotClick(dateStr, '09:00', activeEmployeeId !== 'all' ? activeEmployeeId : undefined)}
+        >
+          + Afspraak toevoegen
+        </button>
+      </div>
+    );
+  }
+
+  // Desktop: original grid view
   return (
     <div className="overflow-x-auto">
       {/* Employee headers */}

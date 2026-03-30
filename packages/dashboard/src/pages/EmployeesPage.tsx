@@ -321,8 +321,8 @@ function WorkingHoursModal({
       ) : (
         <div className="space-y-3">
           {[1, 2, 3, 4, 5, 6, 0].map((day) => (
-            <div key={day} className="flex items-center gap-4">
-              <div className="w-24 text-sm font-medium text-gray-700">
+            <div key={day} className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4">
+              <div className="w-16 sm:w-24 text-sm font-medium text-gray-700 flex-shrink-0">
                 {DAYS_OF_WEEK[day]}
               </div>
               <label className="flex items-center gap-2">

@@ -27,12 +27,16 @@
   border: 1px solid var(--bk-border);
   border-radius: var(--bk-radius);
   font-family: var(--bk-font-family);
-  font-size: var(--bk-font-size-base);
+  font-size: 16px;
   color: var(--bk-text);
   background: var(--bk-bg);
   transition: border-color var(--bk-transition), box-shadow var(--bk-transition);
   outline: none;
   width: 100%;
+  min-height: 44px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
 .bk-field__input::placeholder {

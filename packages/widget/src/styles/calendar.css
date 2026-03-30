@@ -19,14 +19,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--bk-border);
   border-radius: var(--bk-radius);
   background: var(--bk-bg);
   cursor: pointer;
   transition: all var(--bk-transition);
   color: var(--bk-text);
+  touch-action: manipulation;
 }
 
 .bk-calendar__nav:hover {
@@ -78,6 +81,8 @@
   border-radius: var(--bk-radius);
   transition: all var(--bk-transition);
   color: var(--bk-text);
+  min-height: 44px;
+  touch-action: manipulation;
 }
 
 .bk-calendar__day:hover:not(:disabled):not(.bk-calendar__day--empty) {

@@ -34,8 +34,9 @@ const publicLimiter = rateLimit({
 
 const bookingLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20,
+  max: env.NODE_ENV === 'development' ? 1000 : 20,
   message: { success: false, error: 'Te veel boekingen, probeer het later opnieuw' },
+  skip: (req) => req.method !== 'POST', // Only limit POST (public bookings), not GET (dashboard)
 });
 
 // Health check

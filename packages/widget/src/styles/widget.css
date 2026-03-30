@@ -22,8 +22,11 @@
   border-radius: var(--bk-radius-lg);
   box-shadow: var(--bk-shadow-lg);
   overflow: hidden;
+  overflow-x: hidden;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Header */
@@ -40,8 +43,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
   border: none;
   background: var(--bk-bg-secondary);
   border-radius: var(--bk-radius);
@@ -49,6 +54,7 @@
   color: var(--bk-text);
   transition: background var(--bk-transition);
   flex-shrink: 0;
+  touch-action: manipulation;
 }
 
 .bk-header__back:hover {
@@ -153,6 +159,8 @@
   cursor: pointer;
   transition: all var(--bk-transition);
   background: var(--bk-bg);
+  min-height: 48px;
+  touch-action: manipulation;
 }
 
 .bk-service-card:hover {
@@ -206,6 +214,8 @@
   cursor: pointer;
   transition: all var(--bk-transition);
   background: var(--bk-bg);
+  min-height: 48px;
+  touch-action: manipulation;
 }
 
 .bk-employee-card:hover {
@@ -266,6 +276,12 @@
   font-weight: 500;
   transition: all var(--bk-transition);
   background: var(--bk-bg);
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
 }
 
 .bk-time-slot:hover {
@@ -333,6 +349,8 @@
   cursor: pointer;
   transition: all var(--bk-transition);
   width: 100%;
+  min-height: 44px;
+  touch-action: manipulation;
 }
 
 .bk-btn--primary {
@@ -456,4 +474,32 @@
   text-align: center;
   padding: var(--bk-space-8);
   color: var(--bk-text-secondary);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 380px) {
+  .bk-time-slots {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .bk-content {
+    padding: var(--bk-space-4);
+  }
+
+  .bk-header {
+    padding: var(--bk-space-3) var(--bk-space-4);
+  }
+
+  .bk-steps {
+    padding: var(--bk-space-2) var(--bk-space-4);
+  }
+
+  .bk-steps__dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .bk-steps__dot--active {
+    width: 20px;
+  }
 }

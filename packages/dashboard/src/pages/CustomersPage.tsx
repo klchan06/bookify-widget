@@ -36,14 +36,14 @@ export function CustomersPage() {
       ),
     },
     { key: 'email', header: 'E-mail', sortable: true },
-    { key: 'phone', header: 'Telefoon', render: (c: Customer) => c.phone || '-' },
+    { key: 'phone', header: 'Telefoon', render: (c: Customer) => <span className="hidden sm:inline">{c.phone || '-'}</span> },
     { key: 'totalBookings', header: 'Afspraken', sortable: true },
     {
       key: 'lastVisit',
       header: 'Laatste bezoek',
       sortable: true,
       render: (c: Customer) =>
-        c.lastVisit ? format(new Date(c.lastVisit), 'd MMM yyyy', { locale: nl }) : '-',
+        <span className="hidden md:inline">{c.lastVisit ? format(new Date(c.lastVisit), 'd MMM yyyy', { locale: nl }) : '-'}</span>,
     },
   ];
 
@@ -59,7 +59,7 @@ export function CustomersPage() {
       </div>
 
       {/* Search */}
-      <div className="relative max-w-md">
+      <div className="relative w-full sm:max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
           type="text"

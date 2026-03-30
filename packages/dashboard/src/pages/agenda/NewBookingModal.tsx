@@ -190,13 +190,13 @@ export function NewBookingModal({ isOpen, onClose, defaults }: NewBookingModalPr
             {availableSlots.length === 0 ? (
               <p className="text-sm text-gray-500">Geen beschikbare tijdsloten op deze datum.</p>
             ) : (
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-40 overflow-y-auto">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 max-h-40 overflow-y-auto">
                 {availableSlots.map((slot) => (
                   <button
                     key={slot.time}
                     type="button"
                     onClick={() => update('startTime', slot.time)}
-                    className={`px-2 py-1.5 text-sm rounded-lg border transition-colors ${
+                    className={`px-2 py-2.5 sm:py-1.5 text-sm rounded-lg border transition-colors min-h-[44px] ${
                       form.startTime === slot.time
                         ? 'bg-brand-600 text-white border-brand-600'
                         : 'border-gray-300 text-gray-700 hover:bg-gray-50'

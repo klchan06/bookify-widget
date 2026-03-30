@@ -57,7 +57,7 @@ export function Table<T>({ columns, data, onRowClick, emptyMessage = 'Geen gegev
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-4 py-3 ${col.sortable ? 'cursor-pointer select-none hover:text-gray-700' : ''}`}
+                className={`text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-2 py-2 sm:px-4 sm:py-3 ${col.sortable ? 'cursor-pointer select-none hover:text-gray-700' : ''}`}
                 onClick={() => col.sortable && handleSort(col.key)}
               >
                 <span className="inline-flex items-center gap-1">
@@ -78,7 +78,7 @@ export function Table<T>({ columns, data, onRowClick, emptyMessage = 'Geen gegev
               onClick={() => onRowClick?.(item)}
             >
               {columns.map((col) => (
-                <td key={col.key} className="px-4 py-3 text-sm text-gray-900">
+                <td key={col.key} className="px-2 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-900">
                   {col.render ? col.render(item) : String((item as Record<string, unknown>)[col.key] ?? '')}
                 </td>
               ))}

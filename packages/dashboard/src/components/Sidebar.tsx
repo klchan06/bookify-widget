@@ -48,7 +48,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
           <button
             onClick={onClose}
-            className="lg:hidden p-1 text-sidebar-text hover:text-white rounded"
+            className="lg:hidden p-2 text-sidebar-text hover:text-white rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
           >
             <X className="w-5 h-5" />
           </button>
@@ -63,7 +63,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               end={item.to === '/'}
               onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                `flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors min-h-[48px] ${
                   isActive
                     ? 'bg-sidebar-active text-sidebar-text-active'
                     : 'text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active'

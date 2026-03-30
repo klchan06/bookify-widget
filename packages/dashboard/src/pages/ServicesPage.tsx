@@ -127,7 +127,7 @@ export function ServicesPage() {
       sortable: true,
       render: (s: Service) => formatPrice(s.price),
     },
-    { key: 'category', header: 'Categorie', sortable: true, render: (s: Service) => s.category || '-' },
+    { key: 'category', header: 'Categorie', sortable: true, render: (s: Service) => <span className="hidden sm:inline">{s.category || '-'}</span> },
     {
       key: 'isActive',
       header: 'Status',
@@ -146,13 +146,13 @@ export function ServicesPage() {
         <div className="flex gap-1 justify-end">
           <button
             onClick={(e) => { e.stopPropagation(); openEdit(s); }}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
           >
             <Pencil className="w-4 h-4" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setDeleteId(s.id); }}
-            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -215,7 +215,7 @@ export function ServicesPage() {
             onChange={(e) => update('description', e.target.value)}
             placeholder="Optionele beschrijving"
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Duur (minuten)"
               type="number"

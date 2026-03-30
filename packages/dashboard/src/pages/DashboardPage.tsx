@@ -86,7 +86,7 @@ export function DashboardPage() {
               .map((booking) => (
                 <div
                   key={booking.id}
-                  className="flex items-center gap-4 py-3 hover:bg-gray-50 rounded-lg px-2 -mx-2"
+                  className="flex items-center gap-3 sm:gap-4 py-3 hover:bg-gray-50 active:bg-gray-100 rounded-lg px-2 -mx-2 min-h-[56px]"
                 >
                   <div className="text-sm font-mono font-medium text-gray-900 w-20">
                     {booking.startTime} - {booking.endTime}

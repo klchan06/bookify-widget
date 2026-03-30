@@ -38,7 +38,7 @@ export function SettingsPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[48px] ${
                 activeTab === tab.id
                   ? 'border-brand-600 text-brand-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -129,7 +129,7 @@ function BusinessTab() {
       <Input label="E-mailadres" type="email" value={form.email || ''} onChange={(e) => update('email', e.target.value)} />
       <Input label="Telefoonnummer" type="tel" value={form.phone || ''} onChange={(e) => update('phone', e.target.value)} />
       <Input label="Adres" value={form.address || ''} onChange={(e) => update('address', e.target.value)} />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input label="Postcode" value={form.postalCode || ''} onChange={(e) => update('postalCode', e.target.value)} />
         <Input label="Stad" value={form.city || ''} onChange={(e) => update('city', e.target.value)} />
       </div>
@@ -389,7 +389,7 @@ function WidgetTab() {
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">Script tag</label>
           <div className="relative">
-            <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-xs overflow-x-auto">
+            <pre className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded-lg text-xs overflow-x-auto break-all whitespace-pre-wrap">
               {embedCode}
             </pre>
             <button
@@ -404,7 +404,7 @@ function WidgetTab() {
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">iFrame</label>
           <div className="relative">
-            <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-xs overflow-x-auto">
+            <pre className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded-lg text-xs overflow-x-auto break-all whitespace-pre-wrap">
               {iframeCode}
             </pre>
             <button

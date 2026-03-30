@@ -65,12 +65,12 @@ export function MonthView({ date, bookings, onDayClick }: MonthViewProps) {
             return (
               <div
                 key={day.toISOString()}
-                className={`min-h-[80px] p-2 border-r border-gray-100 last:border-r-0 cursor-pointer hover:bg-gray-50 transition-colors ${
+                className={`min-h-[60px] sm:min-h-[80px] p-1.5 sm:p-2 border-r border-gray-100 last:border-r-0 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors ${
                   !inMonth ? 'bg-gray-50/50' : ''
                 } ${today ? 'bg-brand-50/50' : ''}`}
                 onClick={() => onDayClick(day)}
               >
-                <div className={`text-sm font-medium mb-1 ${
+                <div className={`text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 ${
                   today
                     ? 'text-brand-600'
                     : inMonth
@@ -80,8 +80,9 @@ export function MonthView({ date, bookings, onDayClick }: MonthViewProps) {
                   {format(day, 'd')}
                 </div>
                 {count > 0 && (
-                  <div className="text-xs bg-brand-100 text-brand-700 rounded-full px-2 py-0.5 inline-block font-medium">
-                    {count} {count === 1 ? 'afspraak' : 'afspraken'}
+                  <div className="text-[10px] sm:text-xs bg-brand-100 text-brand-700 rounded-full px-1.5 sm:px-2 py-0.5 inline-block font-medium">
+                    <span className="hidden sm:inline">{count} {count === 1 ? 'afspraak' : 'afspraken'}</span>
+                    <span className="sm:hidden">{count}</span>
                   </div>
                 )}
               </div>

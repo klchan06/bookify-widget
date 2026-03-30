@@ -29,7 +29,7 @@ export function WeekView({ date, bookings, onSlotClick, onBookingClick }: WeekVi
       {/* Day headers */}
       <div
         className="grid border-b border-gray-200 sticky top-0 bg-white z-10"
-        style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}
+        style={{ gridTemplateColumns: '60px repeat(7, 1fr)', minWidth: '700px' }}
       >
         <div className="p-2" />
         {days.map((day) => (
@@ -50,7 +50,7 @@ export function WeekView({ date, bookings, onSlotClick, onBookingClick }: WeekVi
       {/* Time grid */}
       <div
         className="grid relative"
-        style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}
+        style={{ gridTemplateColumns: '60px repeat(7, 1fr)', minWidth: '700px' }}
       >
         {/* Time labels */}
         <div>

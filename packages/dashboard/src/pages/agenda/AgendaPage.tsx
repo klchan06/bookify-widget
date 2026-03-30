@@ -107,24 +107,26 @@ export function AgendaPage() {
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={() => navigate('prev')}>
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <Button variant="secondary" size="sm" onClick={goToToday}>
-            Vandaag
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => navigate('next')}>
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-          <h2 className="text-lg font-semibold text-gray-900 ml-2 capitalize">
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+          <div className="flex items-center gap-1">
+            <Button variant="secondary" size="sm" onClick={() => navigate('prev')}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <Button variant="secondary" size="sm" onClick={goToToday}>
+              Vandaag
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => navigate('next')}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 ml-1 sm:ml-2 capitalize">
             {getTitle()}
           </h2>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {/* Employee filter */}
-          <div className="w-48">
+          <div className="w-full sm:w-48">
             <Select
               options={employeeOptions}
               value={selectedEmployeeId}
@@ -139,7 +141,7 @@ export function AgendaPage() {
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`px-3 py-2 text-sm font-medium transition-colors min-h-[44px] ${
                   viewMode === mode
                     ? 'bg-brand-600 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'
