@@ -1,0 +1,24 @@
+{
+  "name": "bookify-widget",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:push": "npm run db:push --workspace=packages/api",
+    "db:seed": "npm run db:seed --workspace=packages/api",
+    "db:studio": "npm run db:studio --workspace=packages/api"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@10.0.0"
+}
