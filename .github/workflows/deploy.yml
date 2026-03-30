@@ -1,0 +1,128 @@
+name: Deploy
+
+on:
+  # Run after CI completes on master
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+# ============================================================
+# REQUIRED SECRETS (configure in GitHub repo settings):
+#
+# RAILWAY_TOKEN        - Railway API token for API deployment
+# VERCEL_TOKEN         - Vercel API token
+# VERCEL_ORG_ID        - Vercel organization ID
+# VERCEL_PROJECT_ID_DASHBOARD - Vercel project ID for dashboard
+# VERCEL_PROJECT_ID_WIDGET    - Vercel project ID for widget
+# DATABASE_URL         - Production database connection string
+# JWT_SECRET           - JWT signing secret
+# SMTP_HOST            - Email server host
+# SMTP_USER            - Email server username
+# SMTP_PASS            - Email server password
+# ============================================================
+
+jobs:
+  # Only deploy if CI passed (or manual trigger)
+  check-ci:
+    name: Verify CI Status
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - run: echo "CI passed or manual deploy triggered"
+
+  deploy-api:
+    name: Deploy API (Railway)
+    runs-on: ubuntu-latest
+    needs: [check-ci]
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service bookify-api
+
+  deploy-dashboard:
+    name: Deploy Dashboard (Vercel)
+    runs-on: ubuntu-latest
+    needs: [check-ci]
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build dashboard
+        run: npx turbo run build --filter=@bookify/dashboard
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_DASHBOARD }}
+        run: |
+          cd packages/dashboard
+          vercel deploy --prod --token=$VERCEL_TOKEN
+
+  deploy-widget:
+    name: Deploy Widget (Vercel CDN)
+    runs-on: ubuntu-latest
+    needs: [check-ci]
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build widget
+        run: npx turbo run build --filter=@bookify/widget
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WIDGET }}
+        run: |
+          cd packages/widget
+          vercel deploy --prod --token=$VERCEL_TOKEN
