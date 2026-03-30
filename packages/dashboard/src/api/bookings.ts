@@ -10,13 +10,13 @@ export interface BookingFilters {
 }
 
 export interface CreateBookingData {
+  salonId: string;
   serviceId: string;
   employeeId: string;
-  customerId?: string;
   date: string;
   startTime: string;
-  customerName?: string;
-  customerEmail?: string;
+  customerName: string;
+  customerEmail: string;
   customerPhone?: string;
   notes?: string;
 }

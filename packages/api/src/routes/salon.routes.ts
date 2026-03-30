@@ -33,6 +33,20 @@ const updateSettingsSchema = z.object({
   widgetFontFamily: z.string().optional(),
 });
 
+// GET /api/salon/me - Get own salon (authenticated)
+router.get('/me', authenticate, async (req: AuthRequest, res: Response, next) => {
+  try {
+    const salon = await prisma.salon.findUnique({ where: { id: req.user!.salonId } });
+    if (!salon) {
+      res.status(404).json({ success: false, error: 'Salon niet gevonden' });
+      return;
+    }
+    res.json({ success: true, data: salon });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/salon?slug=... (public)
 router.get('/', async (req: Request, res: Response, next) => {
   try {

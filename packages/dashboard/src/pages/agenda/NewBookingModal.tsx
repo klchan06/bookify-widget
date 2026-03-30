@@ -10,6 +10,7 @@ import { useEmployees } from '../../hooks/useEmployees';
 import { useCreateBooking } from '../../hooks/useBookings';
 import { availabilityApi } from '../../api/availability';
 import { customersApi } from '../../api/customers';
+import { useAuthStore } from '../../store/authStore';
 import type { Customer, TimeSlot } from '@bookify/shared';
 
 interface NewBookingModalProps {
@@ -26,6 +27,7 @@ export function NewBookingModal({ isOpen, onClose, defaults }: NewBookingModalPr
   const { data: services } = useServices();
   const { data: employees } = useEmployees();
   const createBooking = useCreateBooking();
+  const salonId = useAuthStore((s) => s.user?.salonId);
 
   const [form, setForm] = useState({
     serviceId: '',
@@ -69,9 +71,10 @@ export function NewBookingModal({ isOpen, onClose, defaults }: NewBookingModalPr
 
   // Load available slots when service/employee/date change
   useEffect(() => {
-    if (form.serviceId && form.date) {
+    if (form.serviceId && form.date && salonId) {
       availabilityApi
         .getSlots({
+          salonId,
           serviceId: form.serviceId,
           employeeId: form.employeeId || undefined,
           date: form.date,
@@ -79,7 +82,7 @@ export function NewBookingModal({ isOpen, onClose, defaults }: NewBookingModalPr
         .then((data) => setSlots(data.slots || []))
         .catch(() => setSlots([]));
     }
-  }, [form.serviceId, form.employeeId, form.date]);
+  }, [form.serviceId, form.employeeId, form.date, salonId]);
 
   // Search customers
   useEffect(() => {
@@ -126,14 +129,14 @@ export function NewBookingModal({ isOpen, onClose, defaults }: NewBookingModalPr
 
     createBooking.mutate(
       {
+        salonId: salonId!,
         serviceId: form.serviceId,
         employeeId: form.employeeId,
-        customerId: form.customerId || undefined,
         date: form.date,
         startTime: form.startTime,
-        customerName: !form.customerId ? form.customerName : undefined,
-        customerEmail: !form.customerId ? form.customerEmail : undefined,
-        customerPhone: !form.customerId ? form.customerPhone : undefined,
+        customerName: form.customerName,
+        customerEmail: form.customerEmail,
+        customerPhone: form.customerPhone || undefined,
         notes: form.notes || undefined,
       },
       { onSuccess: onClose }

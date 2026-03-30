@@ -44,6 +44,28 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response, next) => {
   }
 });
 
+// GET /api/customers/search
+router.get('/search', authenticate, async (req: AuthRequest, res: Response, next) => {
+  try {
+    const query = (req.query.q || req.query.search || '') as string;
+    const customers = await prisma.customer.findMany({
+      where: {
+        salonId: req.user!.salonId,
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { email: { contains: query, mode: 'insensitive' } },
+          { phone: { contains: query } },
+        ],
+      },
+      take: 10,
+      orderBy: { name: 'asc' },
+    });
+    res.json({ success: true, data: customers });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/customers/:id
 router.get('/:id', authenticate, async (req: AuthRequest, res: Response, next) => {
   try {
@@ -64,6 +86,20 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response, next) =
     }
 
     res.json({ success: true, data: customer });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/customers/:id/bookings
+router.get('/:id/bookings', authenticate, async (req: AuthRequest, res: Response, next) => {
+  try {
+    const bookings = await prisma.booking.findMany({
+      where: { customerId: req.params.id, salonId: req.user!.salonId },
+      include: { employee: true, service: true },
+      orderBy: { date: 'desc' },
+    });
+    res.json({ success: true, data: bookings });
   } catch (err) {
     next(err);
   }

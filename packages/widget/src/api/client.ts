@@ -40,20 +40,40 @@ export class BookifyApiClient {
   }
 
   async getSalon(salonId: string): Promise<Salon> {
-    return this.request<Salon>(`/api/salons/${salonId}`);
+    return this.request<Salon>(`/api/salon?id=${salonId}`);
   }
 
   async getSalonSettings(salonId: string): Promise<SalonSettings> {
-    return this.request<SalonSettings>(`/api/salons/${salonId}/settings`);
+    // Widget-config endpoint is public and returns settings
+    const config = await this.request<WidgetConfig & Partial<SalonSettings>>(
+      `/api/salon/widget-config/${salonId}`
+    );
+    return {
+      salonId,
+      bookingLeadTime: 2,
+      bookingWindow: 30,
+      cancellationWindow: 24,
+      slotDuration: 15,
+      allowEmployeeChoice: (config as any).allowEmployeeChoice ?? true,
+      requirePhone: (config as any).requirePhone ?? true,
+      confirmationEmailEnabled: true,
+      reminderEmailEnabled: true,
+      reminderHoursBefore: 24,
+      widgetPrimaryColor: config.primaryColor || '#2563eb',
+      widgetAccentColor: config.accentColor || '#1d4ed8',
+      widgetBorderRadius: config.borderRadius || 8,
+      widgetFontFamily: config.fontFamily || 'Inter, sans-serif',
+    };
   }
 
   async getServices(salonId: string): Promise<Service[]> {
-    return this.request<Service[]>(`/api/salons/${salonId}/services`);
+    return this.request<Service[]>(`/api/services?salonId=${salonId}`);
   }
 
   async getEmployees(salonId: string, serviceId?: string): Promise<Employee[]> {
-    const query = serviceId ? `?serviceId=${serviceId}` : '';
-    return this.request<Employee[]>(`/api/salons/${salonId}/employees${query}`);
+    const params = new URLSearchParams({ salonId });
+    if (serviceId) params.set('serviceId', serviceId);
+    return this.request<Employee[]>(`/api/employees?${params.toString()}`);
   }
 
   async getAvailability(
@@ -62,10 +82,10 @@ export class BookifyApiClient {
     date: string,
     employeeId?: string
   ): Promise<DayAvailability> {
-    const params = new URLSearchParams({ serviceId, date });
+    const params = new URLSearchParams({ salonId, serviceId, date });
     if (employeeId) params.set('employeeId', employeeId);
     return this.request<DayAvailability>(
-      `/api/salons/${salonId}/availability?${params.toString()}`
+      `/api/availability?${params.toString()}`
     );
   }
 
@@ -80,13 +100,13 @@ export class BookifyApiClient {
     customerPhone?: string;
     notes?: string;
   }): Promise<Booking> {
-    return this.request<Booking>(`/api/salons/${data.salonId}/bookings`, {
+    return this.request<Booking>(`/api/bookings`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async getWidgetConfig(salonId: string): Promise<WidgetConfig> {
-    return this.request<WidgetConfig>(`/api/salons/${salonId}/widget-config`);
+    return this.request<WidgetConfig>(`/api/salon/widget-config/${salonId}`);
   }
 }

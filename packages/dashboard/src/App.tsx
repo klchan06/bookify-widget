@@ -21,8 +21,9 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      staleTime: 30_000,
-      refetchOnWindowFocus: false,
+      staleTime: 10_000,
+      refetchOnWindowFocus: true,
+      refetchInterval: 15_000, // Poll elke 15 seconden voor nieuwe boekingen
     },
   },
 });

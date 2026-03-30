@@ -3,7 +3,7 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../utils/prisma.js';
 import { validate } from '../middleware/validate.js';
-import { authenticate, AuthRequest } from '../middleware/auth.js';
+import { authenticate, optionalAuth, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -42,16 +42,22 @@ const specialDaySchema = z.object({
 });
 
 // GET /api/employees?salonId=...
-router.get('/', async (req, res: Response, next) => {
+router.get('/', optionalAuth, async (req, res: Response, next) => {
   try {
-    const salonId = req.query.salonId as string;
+    const salonId = (req.query.salonId as string) || (req as AuthRequest).user?.salonId;
     if (!salonId) {
       res.status(400).json({ success: false, error: 'salonId is verplicht' });
       return;
     }
 
+    const serviceId = req.query.serviceId as string | undefined;
+
     const employees = await prisma.employee.findMany({
-      where: { salonId, isActive: true },
+      where: {
+        salonId,
+        isActive: true,
+        ...(serviceId ? { employeeServices: { some: { serviceId } } } : {}),
+      },
       select: {
         id: true, salonId: true, name: true, email: true, phone: true,
         avatarUrl: true, role: true, isActive: true, createdAt: true,
@@ -180,10 +186,13 @@ router.get('/:id/working-hours', async (req, res: Response, next) => {
 });
 
 // PUT /api/employees/:id/working-hours
-router.put('/:id/working-hours', authenticate, validate(workingHoursSchema), async (req: AuthRequest, res: Response, next) => {
+router.put('/:id/working-hours', authenticate, (req, _res, next) => {
+  if (!Array.isArray(req.body) && req.body.hours) req.body = req.body.hours;
+  next();
+}, validate(workingHoursSchema), async (req: AuthRequest, res: Response, next) => {
   try {
     const employeeId = req.params.id;
-    const hours: Array<{ dayOfWeek: number; startTime: string; endTime: string; isWorking: boolean }> = req.body;
+    const hours: Array<{ dayOfWeek: number; startTime: string; endTime: string; isWorking: boolean }> = Array.isArray(req.body) ? req.body : req.body.hours;
 
     // Delete existing and recreate
     await prisma.workingHours.deleteMany({ where: { employeeId } });
@@ -216,10 +225,13 @@ router.get('/:id/breaks', async (req, res: Response, next) => {
 });
 
 // PUT /api/employees/:id/breaks
-router.put('/:id/breaks', authenticate, validate(breakSchema), async (req: AuthRequest, res: Response, next) => {
+router.put('/:id/breaks', authenticate, (req, _res, next) => {
+  if (!Array.isArray(req.body) && req.body.breaks) req.body = req.body.breaks;
+  next();
+}, validate(breakSchema), async (req: AuthRequest, res: Response, next) => {
   try {
     const employeeId = req.params.id;
-    const breaks: Array<{ dayOfWeek: number; startTime: string; endTime: string }> = req.body;
+    const breaks: Array<{ dayOfWeek: number; startTime: string; endTime: string }> = Array.isArray(req.body) ? req.body : req.body.breaks;
 
     await prisma.employeeBreak.deleteMany({ where: { employeeId } });
     await prisma.employeeBreak.createMany({
@@ -249,6 +261,23 @@ router.post('/:id/special-days', authenticate, validate(specialDaySchema), async
     });
 
     res.status(201).json({ success: true, data: specialDay });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/employees/:id/special-days/:dayId
+router.delete('/:id/special-days/:dayId', authenticate, async (req: AuthRequest, res: Response, next) => {
+  try {
+    const employee = await prisma.employee.findFirst({
+      where: { id: req.params.id, salonId: req.user!.salonId },
+    });
+    if (!employee) {
+      res.status(404).json({ success: false, error: 'Medewerker niet gevonden' });
+      return;
+    }
+    await prisma.specialDay.delete({ where: { id: req.params.dayId } });
+    res.json({ success: true, message: 'Speciale dag verwijderd' });
   } catch (err) {
     next(err);
   }

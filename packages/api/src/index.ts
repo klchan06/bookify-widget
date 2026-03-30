@@ -20,7 +20,7 @@ const app = express();
 // Global middleware
 app.use(helmet());
 app.use(cors({
-  origin: env.CORS_ORIGINS,
+  origin: env.NODE_ENV === 'development' ? true : env.CORS_ORIGINS,
   credentials: true,
 }));
 app.use(express.json());

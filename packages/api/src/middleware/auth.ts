@@ -26,6 +26,21 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
   }
 }
 
+export function optionalAuth(req: Request, res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.substring(7);
+      const decoded = jwt.verify(token, env.JWT_SECRET) as AuthUser;
+      (req as AuthRequest).user = decoded;
+    } catch {
+      // Token invalid - continue without auth
+    }
+  }
+  next();
+}
+
 export function requireRole(...roles: string[]) {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {

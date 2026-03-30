@@ -3,7 +3,7 @@ import apiClient from './client';
 
 export const salonApi = {
   get: async (): Promise<Salon> => {
-    const res = await apiClient.get('/salon');
+    const res = await apiClient.get('/salon/me');
     return res.data.data;
   },
 

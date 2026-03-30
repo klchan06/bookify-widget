@@ -7,6 +7,7 @@ import { ColorPicker } from '../components/ColorPicker';
 import { LoadingSpinner } from '../components/LoadingScreen';
 import { useSalon, useSalonSettings, useUpdateSalon, useUpdateSalonSettings } from '../hooks/useSalon';
 import { salonApi } from '../api/salon';
+import { calendarApi } from '../api/calendar';
 import type { Salon, SalonSettings } from '@bookify/shared';
 import toast from 'react-hot-toast';
 
@@ -498,6 +499,19 @@ function NotificationsTab() {
 }
 
 function IntegrationsTab() {
+  const [connecting, setConnecting] = useState(false);
+
+  const handleConnectGoogle = async () => {
+    setConnecting(true);
+    try {
+      const { authUrl } = await calendarApi.getAuthUrl();
+      window.location.href = authUrl;
+    } catch {
+      toast.error('Fout bij verbinden met Google');
+      setConnecting(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-2xl">
       <h2 className="text-lg font-semibold text-gray-900">Integraties</h2>
@@ -518,7 +532,7 @@ function IntegrationsTab() {
               Synchroniseer afspraken met Google Agenda. Afspraken verschijnen automatisch in de Google Agenda van je medewerkers.
             </p>
             <div className="mt-4">
-              <Button variant="secondary" size="sm">
+              <Button variant="secondary" size="sm" onClick={handleConnectGoogle} loading={connecting}>
                 Verbinden met Google
               </Button>
             </div>

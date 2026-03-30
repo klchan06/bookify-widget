@@ -156,13 +156,66 @@ router.post('/', validate(createBookingSchema), async (req: Request, res: Respon
   }
 });
 
+// GET /api/bookings/stats
+router.get('/stats', authenticate, async (req: AuthRequest, res: Response, next) => {
+  try {
+    const salonId = req.user!.salonId;
+    const today = new Date().toISOString().split('T')[0];
+
+    // Calculate start of week (Monday)
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    const weekStart = monday.toISOString().split('T')[0];
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const weekEnd = sunday.toISOString().split('T')[0];
+
+    // Calculate start of month
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${lastDay}`;
+
+    const [todayCount, weekCount, monthBookings, totalCustomers] = await Promise.all([
+      prisma.booking.count({
+        where: { salonId, date: today, status: { not: 'cancelled' } },
+      }),
+      prisma.booking.count({
+        where: { salonId, date: { gte: weekStart, lte: weekEnd }, status: { not: 'cancelled' } },
+      }),
+      prisma.booking.findMany({
+        where: { salonId, date: { gte: monthStart, lte: monthEnd }, status: { in: ['confirmed', 'completed'] } },
+        include: { service: true },
+      }),
+      prisma.customer.count({ where: { salonId } }),
+    ]);
+
+    const monthRevenue = monthBookings.reduce((sum, b) => sum + b.service.price, 0);
+
+    res.json({
+      success: true,
+      data: { todayCount, weekCount, monthRevenue, totalCustomers },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/bookings - Auth required
 router.get('/', authenticate, async (req: AuthRequest, res: Response, next) => {
   try {
-    const { date, employeeId, status, page = '1', pageSize = '20' } = req.query;
+    const { date, employeeId, status, startDate, endDate, page = '1', pageSize = '20' } = req.query;
 
     const where: Record<string, unknown> = { salonId: req.user!.salonId };
-    if (date) where.date = date;
+    if (date) {
+      where.date = date;
+    } else if (startDate || endDate) {
+      where.date = {};
+      if (startDate) (where.date as Record<string, string>).gte = startDate as string;
+      if (endDate) (where.date as Record<string, string>).lte = endDate as string;
+    }
     if (employeeId) where.employeeId = employeeId;
     if (status) where.status = status;
 
@@ -301,6 +354,37 @@ router.put('/:id/status', authenticate, async (req: AuthRequest, res: Response, 
       include: { employee: true, service: true, customer: true },
     });
 
+    res.json({ success: true, data: booking });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/bookings/:id/status
+router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response, next) => {
+  try {
+    const { status, cancelReason } = req.body;
+    const validStatuses = ['pending', 'confirmed', 'cancelled', 'no_show', 'completed'];
+    if (!validStatuses.includes(status)) {
+      res.status(400).json({ success: false, error: 'Ongeldige status' });
+      return;
+    }
+    const existing = await prisma.booking.findFirst({
+      where: { id: req.params.id, salonId: req.user!.salonId },
+    });
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Afspraak niet gevonden' });
+      return;
+    }
+    const booking = await prisma.booking.update({
+      where: { id: req.params.id },
+      data: { status, ...(cancelReason ? { cancelReason } : {}) },
+      include: { employee: true, service: true, customer: true },
+    });
+    if (status === 'cancelled') {
+      const emailData = await buildEmailData(booking.id);
+      if (emailData) sendBookingCancellation(emailData).catch(console.error);
+    }
     res.json({ success: true, data: booking });
   } catch (err) {
     next(err);

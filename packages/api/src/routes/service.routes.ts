@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../utils/prisma.js';
 import { validate } from '../middleware/validate.js';
-import { authenticate, AuthRequest } from '../middleware/auth.js';
+import { authenticate, optionalAuth, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -18,9 +18,9 @@ const serviceSchema = z.object({
 });
 
 // GET /api/services?salonId=...
-router.get('/', async (req, res: Response, next) => {
+router.get('/', optionalAuth, async (req, res: Response, next) => {
   try {
-    const salonId = req.query.salonId as string;
+    const salonId = (req.query.salonId as string) || (req as AuthRequest).user?.salonId;
     if (!salonId) {
       res.status(400).json({ success: false, error: 'salonId is verplicht' });
       return;
@@ -68,6 +68,25 @@ router.post('/', authenticate, validate(serviceSchema), async (req: AuthRequest,
     });
 
     res.status(201).json({ success: true, data: service });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/services/reorder
+router.put('/reorder', authenticate, async (req: AuthRequest, res: Response, next) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids)) {
+      res.status(400).json({ success: false, error: 'ids array is verplicht' });
+      return;
+    }
+    await Promise.all(
+      ids.map((id: string, index: number) =>
+        prisma.service.update({ where: { id }, data: { sortOrder: index + 1 } })
+      )
+    );
+    res.json({ success: true, message: 'Volgorde bijgewerkt' });
   } catch (err) {
     next(err);
   }
