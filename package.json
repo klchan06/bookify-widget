@@ -11,7 +11,15 @@
     "test": "turbo run test",
     "db:push": "npm run db:push --workspace=packages/api",
     "db:seed": "npm run db:seed --workspace=packages/api",
-    "db:studio": "npm run db:studio --workspace=packages/api"
+    "db:studio": "npm run db:studio --workspace=packages/api",
+    "db:reset": "npm run db:push --workspace=packages/api -- --force-reset && npm run db:seed",
+    "format": "prettier --write \"packages/*/src/**/*.{ts,tsx,json,css}\"",
+    "format:check": "prettier --check \"packages/*/src/**/*.{ts,tsx,json,css}\"",
+    "typecheck": "turbo run lint",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:build": "docker compose build --no-cache",
+    "docker:logs": "docker compose logs -f"
   },
   "devDependencies": {
     "turbo": "^2.4.0",
