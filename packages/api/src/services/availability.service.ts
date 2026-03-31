@@ -55,8 +55,8 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Tim
       include: { employee: true },
     });
     employeeIds = employeeServices
-      .filter((es) => es.employee.isActive && es.employee.salonId === salonId)
-      .map((es) => es.employeeId);
+      .filter((es: typeof employeeServices[number]) => es.employee.isActive && es.employee.salonId === salonId)
+      .map((es: typeof employeeServices[number]) => es.employeeId);
   }
 
   if (employeeIds.length === 0) return [];
@@ -114,7 +114,7 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Tim
       if (slotStart < leadTimeCutoffMinutes) continue;
 
       // Check if slot overlaps with any break
-      const overlapsBreak = breaks.some((b) => {
+      const overlapsBreak = breaks.some((b: { startTime: string; endTime: string }) => {
         const breakStart = timeToMinutes(b.startTime);
         const breakEnd = timeToMinutes(b.endTime);
         return slotStart < breakEnd && slotEnd > breakStart;
@@ -122,7 +122,7 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Tim
       if (overlapsBreak) continue;
 
       // Check if slot overlaps with any existing booking
-      const overlapsBooking = existingBookings.some((b) => {
+      const overlapsBooking = existingBookings.some((b: { startTime: string; endTime: string }) => {
         const bookingStart = timeToMinutes(b.startTime);
         const bookingEnd = timeToMinutes(b.endTime);
         return slotStart < bookingEnd && slotEnd > bookingStart;

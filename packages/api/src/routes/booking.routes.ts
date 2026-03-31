@@ -334,7 +334,7 @@ router.get('/stats', authenticate, async (req: AuthRequest, res: Response, next)
       prisma.customer.count({ where: { salonId } }),
     ]);
 
-    const monthRevenue = monthBookings.reduce((sum, b) => sum + b.service.price, 0);
+    const monthRevenue = monthBookings.reduce((sum: number, b: { service: { price: number } }) => sum + b.service.price, 0);
 
     res.json({
       success: true,

@@ -36,11 +36,11 @@ router.get('/', optionalAuth, async (req, res: Response, next) => {
       orderBy: { sortOrder: 'asc' },
     });
 
-    const result = services.map((s) => ({
+    const result = services.map((s: typeof services[number]) => ({
       ...s,
       employees: s.employeeServices
-        .map((es) => es.employee)
-        .filter((e) => e.isActive),
+        .map((es: typeof s.employeeServices[number]) => es.employee)
+        .filter((e: { isActive: boolean }) => e.isActive),
       employeeServices: undefined,
     }));
 
