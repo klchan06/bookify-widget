@@ -25,19 +25,23 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Rate limiting for public endpoints
-const publicLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
-  message: { success: false, error: 'Te veel verzoeken, probeer het later opnieuw' },
-});
+// Rate limiting - only in production
+const publicLimiter = env.NODE_ENV === 'production'
+  ? rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 100,
+      message: { success: false, error: 'Te veel verzoeken, probeer het later opnieuw' },
+    })
+  : (_req: express.Request, _res: express.Response, next: express.NextFunction) => next();
 
-const bookingLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: env.NODE_ENV === 'development' ? 1000 : 20,
-  message: { success: false, error: 'Te veel boekingen, probeer het later opnieuw' },
-  skip: (req) => req.method !== 'POST', // Only limit POST (public bookings), not GET (dashboard)
-});
+const bookingLimiter = env.NODE_ENV === 'production'
+  ? rateLimit({
+      windowMs: 60 * 60 * 1000,
+      max: 20,
+      message: { success: false, error: 'Te veel boekingen, probeer het later opnieuw' },
+      skip: (req) => req.method !== 'POST',
+    })
+  : (_req: express.Request, _res: express.Response, next: express.NextFunction) => next();
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -58,7 +62,7 @@ app.use('/api/salon', publicLimiter, salonRoutes);
 app.use(errorHandler);
 
 // Start server
-app.listen(env.PORT, () => {
+app.listen(env.PORT, '0.0.0.0', () => {
   console.log(`Bookify API running on port ${env.PORT}`);
   console.log(`Environment: ${env.NODE_ENV}`);
 });

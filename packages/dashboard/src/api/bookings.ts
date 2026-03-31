@@ -19,6 +19,7 @@ export interface CreateBookingData {
   customerEmail: string;
   customerPhone?: string;
   notes?: string;
+  privateNotes?: string;
 }
 
 export const bookingsApi = {
@@ -49,6 +50,18 @@ export const bookingsApi = {
 
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/bookings/${id}`);
+  },
+
+  createRecurring: async (data: CreateBookingData & {
+    recurring: {
+      frequency: string;
+      days?: number[];
+      endAfter?: number;
+      endDate?: string;
+    };
+  }): Promise<Booking[]> => {
+    const res = await apiClient.post('/bookings/recurring', data);
+    return res.data.data;
   },
 
   getStats: async (): Promise<{

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
-import { Clock, User, Scissors, Calendar, MessageSquare, CheckCircle, XCircle, AlertCircle, Award } from 'lucide-react';
+import { Clock, User, Scissors, Calendar, MessageSquare, CheckCircle, XCircle, AlertCircle, Award, Lock } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
@@ -98,6 +98,17 @@ export function BookingDetailModal({ isOpen, onClose, booking }: BookingDetailMo
             <div className="flex items-start gap-3">
               <MessageSquare className="w-5 h-5 text-gray-400 mt-0.5" />
               <p className="text-sm text-gray-600">{booking.notes}</p>
+            </div>
+          )}
+
+          {/* Private Notes */}
+          {booking.privateNotes && (
+            <div className="flex items-start gap-3">
+              <Lock className="w-5 h-5 text-amber-500 mt-0.5" />
+              <div>
+                <p className="text-xs font-medium text-amber-600 mb-0.5">Privé-opmerking</p>
+                <p className="text-sm text-gray-600">{booking.privateNotes}</p>
+              </div>
             </div>
           )}
 

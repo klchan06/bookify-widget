@@ -8,6 +8,7 @@ import { DatePicker } from '../../components/DatePicker';
 import { useServices } from '../../hooks/useServices';
 import { useEmployees } from '../../hooks/useEmployees';
 import { useCreateBooking } from '../../hooks/useBookings';
+import { bookingsApi } from '../../api/bookings';
 import { availabilityApi } from '../../api/availability';
 import { customersApi } from '../../api/customers';
 import { useAuthStore } from '../../store/authStore';
@@ -40,11 +41,19 @@ export function NewBookingModal({ isOpen, onClose, defaults }: NewBookingModalPr
     customerEmail: '',
     customerPhone: '',
     notes: '',
+    privateNotes: '',
+    isRecurring: false,
+    recurringFrequency: 'weekly' as 'weekly' | 'biweekly' | 'monthly',
+    recurringDays: [] as number[],
+    recurringEndType: 'count' as 'count' | 'date',
+    recurringEndCount: '4',
+    recurringEndDate: '',
   });
 
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [searchResults, setSearchResults] = useState<Customer[]>([]);
   const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [recurringLoading, setRecurringLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Reset form when modal opens
@@ -61,6 +70,13 @@ export function NewBookingModal({ isOpen, onClose, defaults }: NewBookingModalPr
         customerEmail: '',
         customerPhone: '',
         notes: '',
+        privateNotes: '',
+        isRecurring: false,
+        recurringFrequency: 'weekly',
+        recurringDays: [],
+        recurringEndType: 'count',
+        recurringEndCount: '4',
+        recurringEndDate: '',
       });
       setSlots([]);
       setSearchResults([]);
@@ -96,9 +112,18 @@ export function NewBookingModal({ isOpen, onClose, defaults }: NewBookingModalPr
     }
   }, [form.customerSearch]);
 
-  const update = (field: string, value: string) => {
+  const update = (field: string, value: unknown) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const toggleRecurringDay = (dayNum: number) => {
+    setForm((prev) => ({
+      ...prev,
+      recurringDays: prev.recurringDays.includes(dayNum)
+        ? prev.recurringDays.filter((d) => d !== dayNum)
+        : [...prev.recurringDays, dayNum],
+    }));
   };
 
   const selectCustomer = (customer: Customer) => {
@@ -127,20 +152,40 @@ export function NewBookingModal({ isOpen, onClose, defaults }: NewBookingModalPr
   const handleSubmit = async () => {
     if (!validate()) return;
 
-    createBooking.mutate(
-      {
-        salonId: salonId!,
-        serviceId: form.serviceId,
-        employeeId: form.employeeId,
-        date: form.date,
-        startTime: form.startTime,
-        customerName: form.customerName,
-        customerEmail: form.customerEmail,
-        customerPhone: form.customerPhone || undefined,
-        notes: form.notes || undefined,
-      },
-      { onSuccess: onClose }
-    );
+    const baseData = {
+      salonId: salonId!,
+      serviceId: form.serviceId,
+      employeeId: form.employeeId,
+      date: form.date,
+      startTime: form.startTime,
+      customerName: form.customerName,
+      customerEmail: form.customerEmail,
+      customerPhone: form.customerPhone || undefined,
+      notes: form.notes || undefined,
+      privateNotes: form.privateNotes || undefined,
+    };
+
+    if (form.isRecurring) {
+      setRecurringLoading(true);
+      try {
+        await bookingsApi.createRecurring({
+          ...baseData,
+          recurring: {
+            frequency: form.recurringFrequency,
+            days: form.recurringDays.length > 0 ? form.recurringDays : undefined,
+            endAfter: form.recurringEndType === 'count' ? parseInt(form.recurringEndCount, 10) : undefined,
+            endDate: form.recurringEndType === 'date' ? form.recurringEndDate : undefined,
+          },
+        });
+        onClose();
+      } catch {
+        // Error handled by API client
+      } finally {
+        setRecurringLoading(false);
+      }
+    } else {
+      createBooking.mutate(baseData, { onSuccess: onClose });
+    }
   };
 
   const serviceOptions = (services || []).filter((s) => s.isActive).map((s) => ({
@@ -287,12 +332,87 @@ export function NewBookingModal({ isOpen, onClose, defaults }: NewBookingModalPr
           placeholder="Optionele notities..."
         />
 
+        {/* Private notes */}
+        <Input
+          label="Privé-opmerking"
+          value={form.privateNotes}
+          onChange={(e) => update('privateNotes', e.target.value)}
+          placeholder="Alleen zichtbaar voor medewerkers..."
+        />
+
+        {/* Recurring */}
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={form.isRecurring}
+              onChange={(e) => update('isRecurring', e.target.checked)}
+              className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+            />
+            <span className="font-medium text-gray-700">Herhalen</span>
+          </label>
+
+          {form.isRecurring && (
+            <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+              <Select
+                label="Herhaling"
+                options={[
+                  { value: 'weekly', label: 'Wekelijks' },
+                  { value: 'biweekly', label: 'Om de week' },
+                  { value: 'monthly', label: 'Maandelijks' },
+                ]}
+                value={form.recurringFrequency}
+                onChange={(e) => update('recurringFrequency', e.target.value)}
+              />
+
+              {form.recurringFrequency === 'weekly' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Dagen van de week</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'].map((day, i) => {
+                      const dayNum = i === 6 ? 0 : i + 1;
+                      const isSelected = form.recurringDays.includes(dayNum);
+                      return (
+                        <button key={day} type="button"
+                          onClick={() => toggleRecurringDay(dayNum)}
+                          className={`px-3 py-1.5 rounded text-sm border ${isSelected ? 'bg-brand-600 text-white border-brand-600' : 'border-gray-300 text-gray-700'}`}
+                        >
+                          {day}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Einde reeks</label>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1 text-sm">
+                    <input type="radio" name="recurEnd" value="count" checked={form.recurringEndType === 'count'} onChange={() => update('recurringEndType', 'count')} />
+                    na
+                  </label>
+                  <Input type="number" value={form.recurringEndCount} onChange={(e) => update('recurringEndCount', e.target.value)} className="w-16" />
+                  <span className="text-sm">keer</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1 text-sm">
+                    <input type="radio" name="recurEnd" value="date" checked={form.recurringEndType === 'date'} onChange={() => update('recurringEndType', 'date')} />
+                    op
+                  </label>
+                  <DatePicker value={form.recurringEndDate} onChange={(v) => update('recurringEndDate', v)} />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
           <Button variant="secondary" onClick={onClose}>
             Annuleren
           </Button>
-          <Button onClick={handleSubmit} loading={createBooking.isPending}>
-            Opslaan
+          <Button onClick={handleSubmit} loading={createBooking.isPending || recurringLoading}>
+            {form.isRecurring ? 'Reeks opslaan' : 'Opslaan'}
           </Button>
         </div>
       </div>

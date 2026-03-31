@@ -11,6 +11,7 @@ import {
   sendBookingUpdate,
 } from '../services/email.service.js';
 import { syncBookingToGoogle } from '../services/calendar.service.js';
+import crypto from 'crypto';
 
 const router = Router();
 
@@ -35,6 +36,7 @@ const createBookingSchema = z.object({
   customerEmail: z.string().email(),
   customerPhone: z.string().optional(),
   notes: z.string().optional(),
+  privateNotes: z.string().optional(),
 });
 
 const updateBookingSchema = z.object({
@@ -42,6 +44,26 @@ const updateBookingSchema = z.object({
   startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   employeeId: z.string().uuid().optional(),
   notes: z.string().optional(),
+  privateNotes: z.string().optional(),
+});
+
+const recurringBookingSchema = z.object({
+  salonId: z.string().uuid(),
+  serviceId: z.string().uuid(),
+  employeeId: z.string().uuid(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/),
+  customerName: z.string().min(2),
+  customerEmail: z.string().email(),
+  customerPhone: z.string().optional(),
+  notes: z.string().optional(),
+  privateNotes: z.string().optional(),
+  recurring: z.object({
+    frequency: z.enum(['weekly', 'biweekly', 'monthly']),
+    days: z.array(z.number().min(0).max(6)).optional(),
+    endAfter: z.number().int().min(1).max(52).optional(),
+    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  }),
 });
 
 async function buildEmailData(bookingId: string) {
@@ -68,7 +90,7 @@ async function buildEmailData(bookingId: string) {
 // POST /api/bookings - Public endpoint
 router.post('/', validate(createBookingSchema), async (req: Request, res: Response, next) => {
   try {
-    const { salonId, serviceId, date, startTime, customerName, customerEmail, customerPhone, notes } = req.body;
+    const { salonId, serviceId, date, startTime, customerName, customerEmail, customerPhone, notes, privateNotes } = req.body;
     let { employeeId } = req.body;
 
     // Get service
@@ -126,6 +148,7 @@ router.post('/', validate(createBookingSchema), async (req: Request, res: Respon
         startTime,
         endTime,
         notes,
+        privateNotes,
         status: 'confirmed',
       },
       include: { employee: true, service: true, customer: true, salon: true },
@@ -151,6 +174,125 @@ router.post('/', validate(createBookingSchema), async (req: Request, res: Respon
     syncBookingToGoogle(booking.id).catch(console.error);
 
     res.status(201).json({ success: true, data: booking });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/bookings/recurring - Authenticated endpoint for recurring bookings
+router.post('/recurring', authenticate, validate(recurringBookingSchema), async (req: AuthRequest, res: Response, next) => {
+  try {
+    const {
+      salonId, serviceId, employeeId, date, startTime,
+      customerName, customerEmail, customerPhone, notes, privateNotes,
+      recurring,
+    } = req.body;
+
+    // Get service
+    const service = await prisma.service.findUnique({ where: { id: serviceId } });
+    if (!service || !service.isActive) {
+      res.status(404).json({ success: false, error: 'Dienst niet gevonden' });
+      return;
+    }
+
+    // Find or create customer
+    const customer = await prisma.customer.upsert({
+      where: { email_salonId: { email: customerEmail, salonId } },
+      create: { salonId, name: customerName, email: customerEmail, phone: customerPhone },
+      update: { name: customerName, phone: customerPhone || undefined },
+    });
+
+    // Generate dates based on recurring rule
+    const dates: string[] = [];
+    const startDate = new Date(date + 'T00:00:00');
+    const maxOccurrences = recurring.endAfter || 52;
+    const endDate = recurring.endDate ? new Date(recurring.endDate + 'T23:59:59') : null;
+
+    let current = new Date(startDate);
+    while (dates.length < maxOccurrences) {
+      if (endDate && current > endDate) break;
+
+      const dayOfWeek = current.getDay(); // 0=Sun, 1=Mon...
+      const shouldInclude =
+        !recurring.days || recurring.days.length === 0 || recurring.days.includes(dayOfWeek);
+
+      if (shouldInclude) {
+        const y = current.getFullYear();
+        const mo = String(current.getMonth() + 1).padStart(2, '0');
+        const d = String(current.getDate()).padStart(2, '0');
+        dates.push(`${y}-${mo}-${d}`);
+      }
+
+      // Advance based on frequency
+      if (recurring.frequency === 'weekly') {
+        if (recurring.days && recurring.days.length > 0) {
+          current.setDate(current.getDate() + 1);
+          // If we've gone past the week, jump to next week start
+        } else {
+          current.setDate(current.getDate() + 7);
+        }
+      } else if (recurring.frequency === 'biweekly') {
+        current.setDate(current.getDate() + 14);
+      } else if (recurring.frequency === 'monthly') {
+        current.setMonth(current.getMonth() + 1);
+      }
+    }
+
+    const recurringGroupId = crypto.randomUUID();
+    const endTime = minutesToTime(timeToMinutes(startTime) + service.duration);
+    const createdBookings = [];
+
+    for (const bookingDate of dates) {
+      // Check availability
+      const slots = await getAvailableSlots({ salonId, serviceId, employeeId, date: bookingDate });
+      const isAvailable = slots.some((s) => s.time === startTime && s.available);
+      if (!isAvailable) continue; // Skip unavailable dates
+
+      const booking = await prisma.booking.create({
+        data: {
+          salonId,
+          employeeId,
+          serviceId,
+          customerId: customer.id,
+          date: bookingDate,
+          startTime,
+          endTime,
+          notes,
+          privateNotes,
+          status: 'confirmed',
+          isRecurring: true,
+          recurringRule: JSON.stringify(recurring),
+          recurringGroupId,
+        },
+        include: { employee: true, service: true, customer: true, salon: true },
+      });
+
+      createdBookings.push(booking);
+    }
+
+    // Update customer stats
+    if (createdBookings.length > 0) {
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          totalBookings: { increment: createdBookings.length },
+          lastVisit: new Date(),
+        },
+      });
+
+      // Send confirmation for first booking
+      const emailData = await buildEmailData(createdBookings[0].id);
+      if (emailData) {
+        sendBookingConfirmation(emailData).catch(console.error);
+        sendBookingNotification(emailData).catch(console.error);
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      data: createdBookings,
+      message: `${createdBookings.length} van ${dates.length} afspraken aangemaakt`,
+    });
   } catch (err) {
     next(err);
   }
@@ -286,6 +428,7 @@ router.put('/:id', authenticate, validate(updateBookingSchema), async (req: Auth
     }
     if (req.body.employeeId) updateData.employeeId = req.body.employeeId;
     if (req.body.notes !== undefined) updateData.notes = req.body.notes;
+    if (req.body.privateNotes !== undefined) updateData.privateNotes = req.body.privateNotes;
 
     const booking = await prisma.booking.update({
       where: { id: req.params.id },

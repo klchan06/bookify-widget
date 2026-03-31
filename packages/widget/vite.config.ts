@@ -9,6 +9,10 @@ export default defineConfig({
       '@bookify/shared': resolve(__dirname, '../shared/src'),
     },
   },
+  server: {
+    port: 3002,
+    host: true,
+  },
   build: {
     lib: {
       entry: resolve(__dirname, 'src/web-component.ts'),

@@ -111,6 +111,12 @@ export interface Booking {
   cancelReason?: string;
   createdAt: string;
   updatedAt: string;
+  // Recurring
+  isRecurring?: boolean;
+  recurringRule?: string;
+  recurringGroupId?: string;
+  // Notes
+  privateNotes?: string;
   // Populated
   employee?: Employee;
   service?: Service;

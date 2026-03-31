@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { format, addDays, subDays, addWeeks, subWeeks, addMonths, subMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { format, addDays, subDays, addWeeks, subWeeks, addMonths, subMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameMonth, isToday as isDateToday, isSameDay } from 'date-fns';
 import { nl } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, CalendarPlus } from 'lucide-react';
 import { Button } from '../../components/Button';
 import { Select } from '../../components/Select';
 import { LoadingSpinner } from '../../components/LoadingScreen';
@@ -14,10 +14,98 @@ import { BookingDetailModal } from './BookingDetailModal';
 import { NewBookingModal } from './NewBookingModal';
 import type { Booking } from '@bookify/shared';
 
-type ViewMode = 'day' | 'week' | 'month';
+type ViewMode = 'resource' | 'day' | '4days' | 'week' | 'workweek' | 'worksat';
+
+const VIEW_MODE_LABELS: Record<ViewMode, string> = {
+  resource: 'Per resource',
+  day: 'Dag',
+  '4days': '4 dagen',
+  week: 'Week',
+  workweek: 'Ma-Vr',
+  worksat: 'Ma-Za',
+};
+
+// --- MiniCalendar Component ---
+function MiniCalendar({ selectedDate, onSelectDate }: { selectedDate: Date; onSelectDate: (date: Date) => void }) {
+  const [viewMonth, setViewMonth] = useState(startOfMonth(selectedDate));
+
+  const monthStart = startOfMonth(viewMonth);
+  const monthEnd = endOfMonth(viewMonth);
+  const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+
+  const weeks: Date[][] = [];
+  let day = calStart;
+  while (day <= calEnd) {
+    const week: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      week.push(day);
+      day = addDays(day, 1);
+    }
+    weeks.push(week);
+  }
+
+  const dayLabels = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-3">
+      {/* Month header */}
+      <div className="flex items-center justify-between mb-2">
+        <button
+          onClick={() => setViewMonth(subMonths(viewMonth, 1))}
+          className="p-1 hover:bg-gray-100 rounded text-gray-500"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <span className="text-sm font-semibold text-gray-900 capitalize">
+          {format(viewMonth, 'MMMM yyyy', { locale: nl })}
+        </span>
+        <button
+          onClick={() => setViewMonth(addMonths(viewMonth, 1))}
+          className="p-1 hover:bg-gray-100 rounded text-gray-500"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Day-of-week headers */}
+      <div className="grid grid-cols-7 mb-1">
+        {dayLabels.map((d) => (
+          <div key={d} className="text-center text-xs text-gray-400 font-medium py-1">
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Day grid */}
+      {weeks.map((week, wi) => (
+        <div key={wi} className="grid grid-cols-7">
+          {week.map((d) => {
+            const inMonth = isSameMonth(d, viewMonth);
+            const today = isDateToday(d);
+            const selected = isSameDay(d, selectedDate);
+            return (
+              <button
+                key={d.toISOString()}
+                onClick={() => onSelectDate(d)}
+                className={`text-xs w-7 h-7 flex items-center justify-center rounded-full transition-colors
+                  ${!inMonth ? 'text-gray-300' : 'text-gray-700 hover:bg-gray-100'}
+                  ${today && !selected ? 'font-bold text-brand-600' : ''}
+                  ${selected ? 'bg-brand-600 text-white hover:bg-brand-700' : ''}
+                `}
+              >
+                {format(d, 'd')}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function AgendaPage() {
-  const [viewMode, setViewMode] = useState<ViewMode>('day');
+  const [viewMode, setViewMode] = useState<ViewMode>('resource');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -29,10 +117,16 @@ export function AgendaPage() {
   // Calculate date range based on view
   const dateRange = useMemo(() => {
     switch (viewMode) {
+      case 'resource':
       case 'day':
         return {
           startDate: format(currentDate, 'yyyy-MM-dd'),
           endDate: format(currentDate, 'yyyy-MM-dd'),
+        };
+      case '4days':
+        return {
+          startDate: format(currentDate, 'yyyy-MM-dd'),
+          endDate: format(addDays(currentDate, 3), 'yyyy-MM-dd'),
         };
       case 'week': {
         const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -42,12 +136,18 @@ export function AgendaPage() {
           endDate: format(weekEnd, 'yyyy-MM-dd'),
         };
       }
-      case 'month': {
-        const monthStart = startOfMonth(currentDate);
-        const monthEnd = endOfMonth(currentDate);
+      case 'workweek': {
+        const wwStart = startOfWeek(currentDate, { weekStartsOn: 1 });
         return {
-          startDate: format(monthStart, 'yyyy-MM-dd'),
-          endDate: format(monthEnd, 'yyyy-MM-dd'),
+          startDate: format(wwStart, 'yyyy-MM-dd'),
+          endDate: format(addDays(wwStart, 4), 'yyyy-MM-dd'),
+        };
+      }
+      case 'worksat': {
+        const wsStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+        return {
+          startDate: format(wsStart, 'yyyy-MM-dd'),
+          endDate: format(addDays(wsStart, 5), 'yyyy-MM-dd'),
         };
       }
     }
@@ -61,12 +161,15 @@ export function AgendaPage() {
   const navigate = (direction: 'prev' | 'next') => {
     setCurrentDate((prev) => {
       switch (viewMode) {
+        case 'resource':
         case 'day':
           return direction === 'next' ? addDays(prev, 1) : subDays(prev, 1);
+        case '4days':
+          return direction === 'next' ? addDays(prev, 4) : subDays(prev, 4);
         case 'week':
+        case 'workweek':
+        case 'worksat':
           return direction === 'next' ? addWeeks(prev, 1) : subWeeks(prev, 1);
-        case 'month':
-          return direction === 'next' ? addMonths(prev, 1) : subMonths(prev, 1);
       }
     });
   };
@@ -84,24 +187,107 @@ export function AgendaPage() {
 
   const handleDayClick = (date: Date) => {
     setCurrentDate(date);
-    setViewMode('day');
+    setViewMode('resource');
   };
 
   const getTitle = () => {
     switch (viewMode) {
+      case 'resource':
       case 'day':
         return format(currentDate, 'EEEE d MMMM yyyy', { locale: nl });
+      case '4days': {
+        const end4 = addDays(currentDate, 3);
+        return `${format(currentDate, 'd MMM', { locale: nl })} - ${format(end4, 'd MMM yyyy', { locale: nl })}`;
+      }
       case 'week': {
         const ws = startOfWeek(currentDate, { weekStartsOn: 1 });
         const we = endOfWeek(currentDate, { weekStartsOn: 1 });
         return `${format(ws, 'd MMM', { locale: nl })} - ${format(we, 'd MMM yyyy', { locale: nl })}`;
       }
-      case 'month':
-        return format(currentDate, 'MMMM yyyy', { locale: nl });
+      case 'workweek': {
+        const wwS = startOfWeek(currentDate, { weekStartsOn: 1 });
+        return `${format(wwS, 'd MMM', { locale: nl })} - ${format(addDays(wwS, 4), 'd MMM yyyy', { locale: nl })}`;
+      }
+      case 'worksat': {
+        const wsS = startOfWeek(currentDate, { weekStartsOn: 1 });
+        return `${format(wsS, 'd MMM', { locale: nl })} - ${format(addDays(wsS, 5), 'd MMM yyyy', { locale: nl })}`;
+      }
     }
   };
 
   const employeeOptions = (employees || []).map((e) => ({ value: e.id, label: e.name }));
+
+  const viewModes: ViewMode[] = ['resource', 'day', '4days', 'week', 'workweek', 'worksat'];
+
+  const renderCalendarView = () => {
+    if (isLoading) {
+      return <LoadingSpinner className="py-20" />;
+    }
+
+    switch (viewMode) {
+      case 'resource':
+        return (
+          <DayView
+            date={currentDate}
+            bookings={bookings || []}
+            employees={selectedEmployeeId ? (employees || []).filter((e) => e.id === selectedEmployeeId) : employees || []}
+            onSlotClick={handleSlotClick}
+            onBookingClick={handleBookingClick}
+          />
+        );
+      case 'day':
+        return (
+          <DayView
+            date={currentDate}
+            bookings={bookings || []}
+            employees={selectedEmployeeId ? (employees || []).filter((e) => e.id === selectedEmployeeId) : []}
+            onSlotClick={handleSlotClick}
+            onBookingClick={handleBookingClick}
+          />
+        );
+      case '4days':
+        return (
+          <WeekView
+            date={currentDate}
+            bookings={bookings || []}
+            days={4}
+            startFromDate
+            onSlotClick={handleSlotClick}
+            onBookingClick={handleBookingClick}
+          />
+        );
+      case 'week':
+        return (
+          <WeekView
+            date={currentDate}
+            bookings={bookings || []}
+            days={7}
+            onSlotClick={handleSlotClick}
+            onBookingClick={handleBookingClick}
+          />
+        );
+      case 'workweek':
+        return (
+          <WeekView
+            date={currentDate}
+            bookings={bookings || []}
+            days={5}
+            onSlotClick={handleSlotClick}
+            onBookingClick={handleBookingClick}
+          />
+        );
+      case 'worksat':
+        return (
+          <WeekView
+            date={currentDate}
+            bookings={bookings || []}
+            days={6}
+            onSlotClick={handleSlotClick}
+            onBookingClick={handleBookingClick}
+          />
+        );
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -125,6 +311,19 @@ export function AgendaPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {/* Afspraak maken button - prominent */}
+          <Button
+            size="sm"
+            icon={<CalendarPlus className="w-4 h-4" />}
+            onClick={() => {
+              setNewBookingDefaults({});
+              setShowNewBooking(true);
+            }}
+          >
+            <span className="hidden sm:inline">Afspraak maken</span>
+            <span className="sm:hidden">Nieuw</span>
+          </Button>
+
           {/* Employee filter */}
           <div className="w-full sm:w-48">
             <Select
@@ -135,62 +334,39 @@ export function AgendaPage() {
             />
           </div>
 
-          {/* View toggle */}
-          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-            {(['day', 'week', 'month'] as ViewMode[]).map((mode) => (
+          {/* View toggle - scrollable on mobile */}
+          <div className="flex rounded-lg border border-gray-300 overflow-x-auto max-w-full">
+            {viewModes.map((mode) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
-                className={`px-3 py-2 text-sm font-medium transition-colors min-h-[44px] ${
+                className={`px-2.5 py-2 text-sm font-medium transition-colors min-h-[44px] whitespace-nowrap ${
                   viewMode === mode
                     ? 'bg-brand-600 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                {mode === 'day' ? 'Dag' : mode === 'week' ? 'Week' : 'Maand'}
+                {VIEW_MODE_LABELS[mode]}
               </button>
             ))}
           </div>
-
-          <Button
-            size="sm"
-            icon={<Plus className="w-4 h-4" />}
-            onClick={() => {
-              setNewBookingDefaults({});
-              setShowNewBooking(true);
-            }}
-          >
-            <span className="hidden sm:inline">Nieuwe afspraak</span>
-          </Button>
         </div>
       </div>
 
-      {/* Calendar view */}
-      <div className="card p-0 overflow-hidden">
-        {isLoading ? (
-          <LoadingSpinner className="py-20" />
-        ) : viewMode === 'day' ? (
-          <DayView
-            date={currentDate}
-            bookings={bookings || []}
-            employees={selectedEmployeeId ? (employees || []).filter((e) => e.id === selectedEmployeeId) : employees || []}
-            onSlotClick={handleSlotClick}
-            onBookingClick={handleBookingClick}
+      {/* Layout: mini calendar + main view */}
+      <div className="flex gap-4">
+        {/* Mini calendar - desktop only */}
+        <div className="hidden lg:block w-56 flex-shrink-0">
+          <MiniCalendar
+            selectedDate={currentDate}
+            onSelectDate={(date) => setCurrentDate(date)}
           />
-        ) : viewMode === 'week' ? (
-          <WeekView
-            date={currentDate}
-            bookings={bookings || []}
-            onSlotClick={handleSlotClick}
-            onBookingClick={handleBookingClick}
-          />
-        ) : (
-          <MonthView
-            date={currentDate}
-            bookings={bookings || []}
-            onDayClick={handleDayClick}
-          />
-        )}
+        </div>
+
+        {/* Main calendar */}
+        <div className="flex-1 card p-0 overflow-hidden">
+          {renderCalendarView()}
+        </div>
       </div>
 
       {/* Modals */}

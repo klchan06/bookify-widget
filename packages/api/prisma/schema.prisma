@@ -176,6 +176,14 @@ model Booking {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
+  // Recurring
+  isRecurring      Boolean  @default(false)
+  recurringRule    String?  // JSON: { frequency: 'weekly'|'biweekly'|'monthly', days: [1,2,3], endAfter?: number, endDate?: string }
+  recurringGroupId String?  // Links recurring bookings together
+
+  // Notes
+  privateNotes     String?  // Only visible to salon staff
+
   salon    Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)

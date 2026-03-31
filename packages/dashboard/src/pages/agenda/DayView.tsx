@@ -175,22 +175,34 @@ export function DayView({ date, bookings, employees, onSlotClick, onBookingClick
           return (
             <div key={col.id} className="relative border-l border-gray-200">
               {/* Hour rows (clickable) */}
-              {HOURS.map((hour) => (
-                <div
-                  key={hour}
-                  className="h-[60px] border-b border-gray-100 cursor-pointer hover:bg-brand-50/50 transition-colors"
-                  onClick={() =>
-                    onSlotClick(
-                      dateStr,
-                      `${String(hour).padStart(2, '0')}:00`,
-                      col.id !== 'all' ? col.id : undefined
-                    )
-                  }
-                >
-                  {/* Half-hour line */}
-                  <div className="h-1/2 border-b border-gray-50" />
-                </div>
-              ))}
+              {HOURS.map((hour) => {
+                const isUnavailable = hour < 9 || hour >= 18;
+                return (
+                  <div
+                    key={hour}
+                    className={`h-[60px] border-b border-gray-100 transition-colors ${
+                      isUnavailable ? 'pointer-events-none' : 'cursor-pointer hover:bg-brand-50/50'
+                    }`}
+                    style={
+                      isUnavailable
+                        ? { background: 'repeating-linear-gradient(45deg, transparent, transparent 5px, #e2e8f0 5px, #e2e8f0 10px)' }
+                        : undefined
+                    }
+                    onClick={() => {
+                      if (!isUnavailable) {
+                        onSlotClick(
+                          dateStr,
+                          `${String(hour).padStart(2, '0')}:00`,
+                          col.id !== 'all' ? col.id : undefined
+                        );
+                      }
+                    }}
+                  >
+                    {/* Half-hour line */}
+                    <div className="h-1/2 border-b border-gray-50" />
+                  </div>
+                );
+              })}
 
               {/* Booking blocks */}
               {colBookings.map((booking) => {

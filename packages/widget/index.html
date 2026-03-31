@@ -30,9 +30,15 @@
     <h1>Bookify Widget Preview</h1>
     <bookify-widget
       salon-id="695519f6-802b-422b-a3ed-0426626f3cd6"
-      api-url="http://localhost:3001"
+      id="bk-widget"
     ></bookify-widget>
   </div>
   <script type="module" src="/src/web-component.ts"></script>
+  <script>
+    // Use same hostname as page so it works from phone too
+    document.getElementById('bk-widget').setAttribute('api-url',
+      window.location.protocol + '//' + window.location.hostname + ':3001'
+    );
+  </script>
 </body>
 </html>
