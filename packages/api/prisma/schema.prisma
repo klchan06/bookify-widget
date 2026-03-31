@@ -39,10 +39,11 @@ model Salon {
   updatedAt   DateTime @updatedAt
 
   settings  SalonSettings?
-  employees Employee[]
-  services  Service[]
-  bookings  Booking[]
-  customers Customer[]
+  employees      Employee[]
+  services       Service[]
+  bookings       Booking[]
+  customers      Customer[]
+  emailTemplates EmailTemplate[]
 
   @@index([slug])
 }
@@ -238,4 +239,19 @@ model CalendarConnection {
   lastSynced         DateTime?
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model EmailTemplate {
+  id        String   @id @default(uuid())
+  salonId   String
+  type      String   // 'booking_confirmation', 'booking_reminder', 'booking_cancellation', 'booking_update', 'customer_invite'
+  subject   String
+  body      String   // HTML with template variables
+  isActive  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@unique([salonId, type])
+  @@index([salonId])
 }

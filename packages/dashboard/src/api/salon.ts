@@ -30,4 +30,19 @@ export const salonApi = {
     });
     return res.data.data;
   },
+
+  getEmailTemplates: async (): Promise<any[]> => {
+    const res = await apiClient.get('/salon/email-templates');
+    return res.data.data;
+  },
+
+  updateEmailTemplate: async (type: string, data: { subject?: string; body?: string; isActive?: boolean }): Promise<any> => {
+    const res = await apiClient.put(`/salon/email-templates/${type}`, data);
+    return res.data.data;
+  },
+
+  previewEmailTemplate: async (type: string): Promise<{ subject: string; body: string }> => {
+    const res = await apiClient.post(`/salon/email-templates/${type}/preview`);
+    return res.data.data;
+  },
 };

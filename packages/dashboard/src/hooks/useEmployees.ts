@@ -92,6 +92,32 @@ export function useEmployeeSpecialDays(employeeId: string) {
   });
 }
 
+export function useAddSpecialDay() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<SpecialDay> }) =>
+      employeesApi.addSpecialDay(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['employees', id, 'special-days'] });
+      toast.success('Vrije dag toegevoegd');
+    },
+    onError: () => toast.error('Fout bij toevoegen vrije dag'),
+  });
+}
+
+export function useDeleteSpecialDay() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ employeeId, dayId }: { employeeId: string; dayId: string }) =>
+      employeesApi.deleteSpecialDay(employeeId, dayId),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({ queryKey: ['employees', employeeId, 'special-days'] });
+      toast.success('Vrije dag verwijderd');
+    },
+    onError: () => toast.error('Fout bij verwijderen vrije dag'),
+  });
+}
+
 export function useEmployeeServices(employeeId: string) {
   return useQuery({
     queryKey: ['employees', employeeId, 'services'],

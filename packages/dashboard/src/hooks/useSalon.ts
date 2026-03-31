@@ -3,6 +3,26 @@ import { salonApi } from '../api/salon';
 import type { Salon, SalonSettings } from '@bookify/shared';
 import toast from 'react-hot-toast';
 
+export function useEmailTemplates() {
+  return useQuery({
+    queryKey: ['emailTemplates'],
+    queryFn: salonApi.getEmailTemplates,
+  });
+}
+
+export function useUpdateEmailTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ type, data }: { type: string; data: { subject?: string; body?: string; isActive?: boolean } }) =>
+      salonApi.updateEmailTemplate(type, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['emailTemplates'] });
+      toast.success('E-mailtemplate bijgewerkt');
+    },
+    onError: () => toast.error('Fout bij bijwerken template'),
+  });
+}
+
 export function useSalon() {
   return useQuery({
     queryKey: ['salon'],

@@ -75,6 +75,51 @@ router.post('/register', validate(registerSchema), async (req, res: Response, ne
       include: { employees: true },
     });
 
+    // Create default email templates
+    const defaultTemplates = [
+      {
+        salonId: salon.id,
+        type: 'booking_confirmation',
+        subject: 'Uw afspraak is bevestigd',
+        body: `<p>Geachte %KLANT.NAAM%,</p>
+<p>Hierbij bevestigen wij uw afspraak voor <strong>%AFSPRAAK.DIENST%</strong> op <strong>%AFSPRAAK.DATUM%</strong> om <strong>%AFSPRAAK.TIJD%</strong>.</p>
+<p>Medewerker: %AFSPRAAK.MEDEWERKER%<br>Duur: %AFSPRAAK.DUUR% minuten<br>Prijs: %AFSPRAAK.PRIJS%</p>
+<p>Locatie: %SALON.ADRES%, %SALON.STAD%</p>
+<p>Wilt u uw afspraak annuleren of wijzigen? Neem dan contact met ons op.</p>
+<p>Met vriendelijke groet,<br>%SALON.NAAM%</p>`,
+      },
+      {
+        salonId: salon.id,
+        type: 'booking_reminder',
+        subject: 'Herinnering aan uw afspraak',
+        body: `<p>Geachte %KLANT.NAAM%,</p>
+<p>Graag maken wij u er op attent dat u binnenkort een afspraak bij ons heeft voor <strong>%AFSPRAAK.DIENST%</strong>.</p>
+<p>Datum: %AFSPRAAK.DATUM%<br>Tijd: %AFSPRAAK.TIJD%<br>Medewerker: %AFSPRAAK.MEDEWERKER%</p>
+<p>We zien u graag!</p>
+<p>Met vriendelijke groet,<br>%SALON.NAAM%</p>`,
+      },
+      {
+        salonId: salon.id,
+        type: 'booking_cancellation',
+        subject: 'Bevestiging van annulering',
+        body: `<p>Geachte %KLANT.NAAM%,</p>
+<p>Hierbij bevestigen wij de annulering van uw afspraak voor <strong>%AFSPRAAK.DIENST%</strong> op <strong>%AFSPRAAK.DATUM%</strong> om %AFSPRAAK.TIJD%.</p>
+<p>Wilt u een nieuwe afspraak maken? Boek eenvoudig online via onze website.</p>
+<p>Met vriendelijke groet,<br>%SALON.NAAM%</p>`,
+      },
+      {
+        salonId: salon.id,
+        type: 'booking_update',
+        subject: 'Je afspraak is verzet',
+        body: `<p>Geachte %KLANT.NAAM%,</p>
+<p>Hierbij bevestigen wij uw nieuwe afspraak voor <strong>%AFSPRAAK.DIENST%</strong> op <strong>%AFSPRAAK.DATUM%</strong> om <strong>%AFSPRAAK.TIJD%</strong>.</p>
+<p>Medewerker: %AFSPRAAK.MEDEWERKER%</p>
+<p>Met vriendelijke groet,<br>%SALON.NAAM%</p>`,
+      },
+    ];
+
+    await prisma.emailTemplate.createMany({ data: defaultTemplates });
+
     const employee = salon.employees[0];
 
     const token = jwt.sign(

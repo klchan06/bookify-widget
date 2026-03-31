@@ -18,7 +18,12 @@ import {
   useDeleteEmployee,
   useWorkingHours,
   useUpdateWorkingHours,
+  useEmployeeSpecialDays,
+  useAddSpecialDay,
+  useDeleteSpecialDay,
 } from '../hooks/useEmployees';
+import type { SpecialDay } from '@bookify/shared';
+import toast from 'react-hot-toast';
 
 const ROLE_OPTIONS = [
   { value: 'employee', label: 'Medewerker' },
@@ -56,6 +61,7 @@ export function EmployeesPage() {
 
   const [showModal, setShowModal] = useState(false);
   const [showHoursModal, setShowHoursModal] = useState(false);
+  const [showSpecialDaysModal, setShowSpecialDaysModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [form, setForm] = useState<EmployeeFormData>(defaultForm);
@@ -90,6 +96,11 @@ export function EmployeesPage() {
   const openHours = (emp: Employee) => {
     setSelectedEmployee(emp);
     setShowHoursModal(true);
+  };
+
+  const openSpecialDays = (emp: Employee) => {
+    setSelectedEmployee(emp);
+    setShowSpecialDaysModal(true);
   };
 
   const validate = () => {
@@ -176,9 +187,12 @@ export function EmployeesPage() {
                   </span>
                 </div>
               </div>
-              <div className="flex gap-2 mt-auto pt-3 border-t border-gray-100">
+              <div className="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
                 <Button size="sm" variant="ghost" icon={<Clock className="w-4 h-4" />} onClick={() => openHours(emp)}>
                   Werkuren
+                </Button>
+                <Button size="sm" variant="ghost" icon={<Calendar className="w-4 h-4" />} onClick={() => openSpecialDays(emp)}>
+                  Vrije dagen
                 </Button>
                 <Button size="sm" variant="ghost" icon={<Pencil className="w-4 h-4" />} onClick={() => openEdit(emp)}>
                   Bewerk
@@ -254,10 +268,19 @@ export function EmployeesPage() {
       </Modal>
 
       {/* Working hours modal */}
-      {selectedEmployee && (
+      {selectedEmployee && showHoursModal && (
         <WorkingHoursModal
           isOpen={showHoursModal}
           onClose={() => { setShowHoursModal(false); setSelectedEmployee(null); }}
+          employee={selectedEmployee}
+        />
+      )}
+
+      {/* Special days modal */}
+      {selectedEmployee && showSpecialDaysModal && (
+        <SpecialDaysModal
+          isOpen={showSpecialDaysModal}
+          onClose={() => { setShowSpecialDaysModal(false); setSelectedEmployee(null); }}
           employee={selectedEmployee}
         />
       )}
@@ -367,6 +390,156 @@ function WorkingHoursModal({
             <Button onClick={handleSave} loading={updateHours.isPending}>
               Opslaan
             </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+// Special Days Modal
+function SpecialDaysModal({
+  isOpen,
+  onClose,
+  employee,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  employee: Employee;
+}) {
+  const { data: specialDays, isLoading } = useEmployeeSpecialDays(employee.id);
+  const addSpecialDay = useAddSpecialDay();
+  const deleteSpecialDay = useDeleteSpecialDay();
+
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newDay, setNewDay] = useState({ startDate: '', endDate: '', reason: '', isOff: true });
+
+  const handleAdd = () => {
+    if (!newDay.startDate) {
+      toast.error('Startdatum is verplicht');
+      return;
+    }
+
+    const endDate = newDay.endDate || newDay.startDate;
+
+    // Create entries for each day in the range
+    const start = new Date(newDay.startDate);
+    const end = new Date(endDate);
+    const promises: Promise<any>[] = [];
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      promises.push(
+        addSpecialDay.mutateAsync({
+          id: employee.id,
+          data: {
+            date: dateStr,
+            isOff: newDay.isOff,
+            reason: newDay.reason || undefined,
+          },
+        })
+      );
+    }
+
+    Promise.all(promises).then(() => {
+      setNewDay({ startDate: '', endDate: '', reason: '', isOff: true });
+      setShowAddForm(false);
+    }).catch(() => {
+      // Error toast already handled by hook
+    });
+  };
+
+  const handleDelete = (dayId: string) => {
+    deleteSpecialDay.mutate({ employeeId: employee.id, dayId });
+  };
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Vrije dagen - ${employee.name}`} size="lg">
+      {isLoading ? (
+        <LoadingSpinner />
+      ) : (
+        <div className="space-y-4">
+          {/* List of special days */}
+          {specialDays && specialDays.length > 0 ? (
+            <div className="divide-y divide-gray-200 border border-gray-200 rounded-lg">
+              {specialDays.map((day) => (
+                <div key={day.id} className="flex items-center justify-between p-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{formatDate(day.date)}</p>
+                    {day.reason && <p className="text-xs text-gray-500">{day.reason}</p>}
+                    {!day.isOff && day.startTime && day.endTime && (
+                      <p className="text-xs text-gray-500">Aangepaste uren: {day.startTime} - {day.endTime}</p>
+                    )}
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${day.isOff ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      {day.isOff ? 'Vrije dag' : 'Aangepaste uren'}
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    icon={<Trash2 className="w-4 h-4" />}
+                    onClick={() => handleDelete(day.id)}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 text-center py-4">Geen vrije dagen ingepland.</p>
+          )}
+
+          {/* Add form */}
+          {showAddForm ? (
+            <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+              <h4 className="text-sm font-medium text-gray-900">Vrije periode toevoegen</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="Startdatum"
+                  type="date"
+                  value={newDay.startDate}
+                  onChange={(e) => setNewDay(prev => ({ ...prev, startDate: e.target.value }))}
+                />
+                <Input
+                  label="Einddatum (optioneel)"
+                  type="date"
+                  value={newDay.endDate}
+                  onChange={(e) => setNewDay(prev => ({ ...prev, endDate: e.target.value }))}
+                  min={newDay.startDate}
+                />
+              </div>
+              <Input
+                label="Reden (optioneel)"
+                value={newDay.reason}
+                onChange={(e) => setNewDay(prev => ({ ...prev, reason: e.target.value }))}
+                placeholder="Bijv. vakantie, ziek"
+              />
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={newDay.isOff}
+                  onChange={(e) => setNewDay(prev => ({ ...prev, isOff: e.target.checked }))}
+                  className="rounded border-gray-300 text-brand-600"
+                />
+                <span className="text-sm text-gray-700">Hele dag vrij</span>
+              </label>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="secondary" size="sm" onClick={() => setShowAddForm(false)}>Annuleren</Button>
+                <Button size="sm" onClick={handleAdd} loading={addSpecialDay.isPending}>Toevoegen</Button>
+              </div>
+            </div>
+          ) : (
+            <Button variant="secondary" icon={<Plus className="w-4 h-4" />} onClick={() => setShowAddForm(true)}>
+              Vrije dag toevoegen
+            </Button>
+          )}
+
+          <div className="flex justify-end pt-4 border-t border-gray-100">
+            <Button variant="secondary" onClick={onClose}>Sluiten</Button>
           </div>
         </div>
       )}

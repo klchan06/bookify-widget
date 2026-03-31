@@ -120,6 +120,78 @@ router.put('/settings', authenticate, validate(updateSettingsSchema), async (req
   }
 });
 
+// GET /api/salon/email-templates - Get all templates
+router.get('/email-templates', authenticate, async (req: AuthRequest, res: Response, next) => {
+  try {
+    const templates = await prisma.emailTemplate.findMany({
+      where: { salonId: req.user!.salonId },
+      orderBy: { type: 'asc' },
+    });
+    res.json({ success: true, data: templates });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/salon/email-templates/:type - Update template
+router.put('/email-templates/:type', authenticate, async (req: AuthRequest, res: Response, next) => {
+  try {
+    const { subject, body, isActive } = req.body;
+    const template = await prisma.emailTemplate.upsert({
+      where: { salonId_type: { salonId: req.user!.salonId, type: req.params.type } },
+      create: { salonId: req.user!.salonId, type: req.params.type, subject, body },
+      update: { ...(subject !== undefined && { subject }), ...(body !== undefined && { body }), ...(isActive !== undefined && { isActive }) },
+    });
+    res.json({ success: true, data: template });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/salon/email-templates/:type/preview - Preview template with sample data
+router.post('/email-templates/:type/preview', authenticate, async (req: AuthRequest, res: Response, next) => {
+  try {
+    const salon = await prisma.salon.findUnique({ where: { id: req.user!.salonId } });
+    const template = await prisma.emailTemplate.findFirst({
+      where: { salonId: req.user!.salonId, type: req.params.type },
+    });
+
+    if (!template || !salon) {
+      res.status(404).json({ success: false, error: 'Template niet gevonden' });
+      return;
+    }
+
+    const sampleVars: Record<string, string> = {
+      '%KLANT.NAAM%': 'Jan de Vries',
+      '%KLANT.EMAIL%': 'jan@voorbeeld.nl',
+      '%AFSPRAAK.DIENST%': 'Knippen + baard',
+      '%AFSPRAAK.DATUM%': 'dinsdag 1 april 2026',
+      '%AFSPRAAK.TIJD%': '10:00',
+      '%AFSPRAAK.MEDEWERKER%': 'Khalid',
+      '%AFSPRAAK.DUUR%': '45',
+      '%AFSPRAAK.PRIJS%': '€ 25,00',
+      '%SALON.NAAM%': salon.name,
+      '%SALON.ADRES%': salon.address || '',
+      '%SALON.STAD%': salon.city || '',
+      '%SALON.TELEFOON%': salon.phone || '',
+      '%SALON.EMAIL%': salon.email,
+    };
+
+    // Replace variables
+    let subject = template.subject;
+    let body = template.body;
+    for (const [key, value] of Object.entries(sampleVars)) {
+      const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      subject = subject.replace(new RegExp(escaped, 'g'), value);
+      body = body.replace(new RegExp(escaped, 'g'), value);
+    }
+
+    res.json({ success: true, data: { subject, body } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/salon/widget-config/:salonId (public)
 router.get('/widget-config/:salonId', async (req: Request, res: Response, next) => {
   try {

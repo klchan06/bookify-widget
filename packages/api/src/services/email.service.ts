@@ -1,15 +1,21 @@
 import { Resend } from 'resend';
 import { env } from '../utils/env.js';
+import { prisma } from '../utils/prisma.js';
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
 interface BookingEmailData {
   customerName: string;
   customerEmail: string;
+  salonId: string;
   salonName: string;
   salonEmail: string;
+  salonAddress?: string;
+  salonCity?: string;
+  salonPhone?: string;
   employeeName: string;
   serviceName: string;
+  serviceDuration?: number;
   date: string;
   startTime: string;
   endTime: string;
@@ -73,6 +79,39 @@ function bookingDetailsHtml(data: BookingEmailData): string {
   `;
 }
 
+async function getTemplate(salonId: string, type: string): Promise<{ subject: string; body: string } | null> {
+  const template = await prisma.emailTemplate.findFirst({
+    where: { salonId, type, isActive: true },
+  });
+  return template;
+}
+
+function replaceVariables(text: string, vars: Record<string, string>): string {
+  let result = text;
+  for (const [key, value] of Object.entries(vars)) {
+    result = result.replace(new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
+  }
+  return result;
+}
+
+function buildTemplateVars(data: BookingEmailData): Record<string, string> {
+  return {
+    '%KLANT.NAAM%': data.customerName,
+    '%KLANT.EMAIL%': data.customerEmail,
+    '%AFSPRAAK.DIENST%': data.serviceName,
+    '%AFSPRAAK.DATUM%': formatDate(data.date),
+    '%AFSPRAAK.TIJD%': data.startTime,
+    '%AFSPRAAK.MEDEWERKER%': data.employeeName,
+    '%AFSPRAAK.DUUR%': data.serviceDuration?.toString() || '',
+    '%AFSPRAAK.PRIJS%': formatPrice(data.price, data.currency),
+    '%SALON.NAAM%': data.salonName,
+    '%SALON.ADRES%': data.salonAddress || '',
+    '%SALON.STAD%': data.salonCity || '',
+    '%SALON.TELEFOON%': data.salonPhone || '',
+    '%SALON.EMAIL%': data.salonEmail,
+  };
+}
+
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
   if (!resend) {
     console.log(`[Email] Would send to ${to}: ${subject}`);
@@ -92,6 +131,16 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
 }
 
 export async function sendBookingConfirmation(data: BookingEmailData): Promise<void> {
+  const template = await getTemplate(data.salonId, 'booking_confirmation');
+  if (template) {
+    const vars = buildTemplateVars(data);
+    const subject = replaceVariables(template.subject, vars);
+    const body = replaceVariables(template.body, vars);
+    const html = baseTemplate('Afspraak bevestiging', body);
+    await sendEmail(data.customerEmail, subject, html);
+    return;
+  }
+
   const html = baseTemplate(
     'Afspraak bevestiging',
     `<p>Beste ${data.customerName},</p>
@@ -117,6 +166,16 @@ export async function sendBookingNotification(data: BookingEmailData): Promise<v
 }
 
 export async function sendBookingReminder(data: BookingEmailData): Promise<void> {
+  const template = await getTemplate(data.salonId, 'booking_reminder');
+  if (template) {
+    const vars = buildTemplateVars(data);
+    const subject = replaceVariables(template.subject, vars);
+    const body = replaceVariables(template.body, vars);
+    const html = baseTemplate('Herinnering afspraak', body);
+    await sendEmail(data.customerEmail, subject, html);
+    return;
+  }
+
   const html = baseTemplate(
     'Herinnering afspraak',
     `<p>Beste ${data.customerName},</p>
@@ -131,6 +190,16 @@ export async function sendBookingReminder(data: BookingEmailData): Promise<void>
 }
 
 export async function sendBookingCancellation(data: BookingEmailData): Promise<void> {
+  const template = await getTemplate(data.salonId, 'booking_cancellation');
+  if (template) {
+    const vars = buildTemplateVars(data);
+    const subject = replaceVariables(template.subject, vars);
+    const body = replaceVariables(template.body, vars);
+    const html = baseTemplate('Afspraak geannuleerd', body);
+    await sendEmail(data.customerEmail, subject, html);
+    return;
+  }
+
   const html = baseTemplate(
     'Afspraak geannuleerd',
     `<p>Beste ${data.customerName},</p>
@@ -143,6 +212,16 @@ export async function sendBookingCancellation(data: BookingEmailData): Promise<v
 }
 
 export async function sendBookingUpdate(data: BookingEmailData): Promise<void> {
+  const template = await getTemplate(data.salonId, 'booking_update');
+  if (template) {
+    const vars = buildTemplateVars(data);
+    const subject = replaceVariables(template.subject, vars);
+    const body = replaceVariables(template.body, vars);
+    const html = baseTemplate('Afspraak gewijzigd', body);
+    await sendEmail(data.customerEmail, subject, html);
+    return;
+  }
+
   const html = baseTemplate(
     'Afspraak gewijzigd',
     `<p>Beste ${data.customerName},</p>

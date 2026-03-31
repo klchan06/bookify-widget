@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Calendar, Palette, Bell, Link2, Copy, Check } from 'lucide-react';
+import { Building2, Calendar, Palette, Bell, Link2, Copy, Check, Pencil } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Select } from '../components/Select';
+import { Modal } from '../components/Modal';
 import { ColorPicker } from '../components/ColorPicker';
 import { LoadingSpinner } from '../components/LoadingScreen';
-import { useSalon, useSalonSettings, useUpdateSalon, useUpdateSalonSettings } from '../hooks/useSalon';
+import { useSalon, useSalonSettings, useUpdateSalon, useUpdateSalonSettings, useEmailTemplates, useUpdateEmailTemplate } from '../hooks/useSalon';
 import { salonApi } from '../api/salon';
 import { calendarApi } from '../api/calendar';
 import type { Salon, SalonSettings } from '@bookify/shared';
@@ -420,22 +421,50 @@ function WidgetTab() {
   );
 }
 
+const TEMPLATE_LABELS: Record<string, string> = {
+  'booking_confirmation': 'Afspraakbevestiging',
+  'booking_reminder': 'Afspraakherinnering',
+  'booking_cancellation': 'Bevestiging van annulering',
+  'booking_update': 'Afspraak verzet bevestiging',
+  'customer_invite': 'Consumenten uitnodigen',
+};
+
+const TEMPLATE_VARIABLES = [
+  { var: '%KLANT.NAAM%', desc: 'Naam van de klant' },
+  { var: '%KLANT.EMAIL%', desc: 'E-mailadres van de klant' },
+  { var: '%AFSPRAAK.DIENST%', desc: 'Naam van de dienst' },
+  { var: '%AFSPRAAK.DATUM%', desc: 'Datum van de afspraak' },
+  { var: '%AFSPRAAK.TIJD%', desc: 'Tijd van de afspraak' },
+  { var: '%AFSPRAAK.MEDEWERKER%', desc: 'Naam van de medewerker' },
+  { var: '%AFSPRAAK.DUUR%', desc: 'Duur in minuten' },
+  { var: '%AFSPRAAK.PRIJS%', desc: 'Prijs van de dienst' },
+  { var: '%SALON.NAAM%', desc: 'Naam van het bedrijf' },
+  { var: '%SALON.ADRES%', desc: 'Adres van het bedrijf' },
+  { var: '%SALON.STAD%', desc: 'Stad van het bedrijf' },
+  { var: '%SALON.TELEFOON%', desc: 'Telefoonnummer' },
+  { var: '%SALON.EMAIL%', desc: 'E-mailadres' },
+];
+
 function NotificationsTab() {
-  const { data: settings, isLoading } = useSalonSettings();
+  const { data: settings, isLoading: settingsLoading } = useSalonSettings();
   const updateSettings = useUpdateSalonSettings();
-  const [form, setForm] = useState<Partial<SalonSettings>>({});
+  const [settingsForm, setSettingsForm] = useState<Partial<SalonSettings>>({});
+
+  const { data: templates, isLoading: templatesLoading } = useEmailTemplates();
+  const updateTemplate = useUpdateEmailTemplate();
+  const [editingTemplate, setEditingTemplate] = useState<any>(null);
+  const [preview, setPreview] = useState<{ subject: string; body: string } | null>(null);
+  const [editForm, setEditForm] = useState({ subject: '', body: '', isActive: true });
 
   useEffect(() => {
-    if (settings) setForm(settings);
+    if (settings) setSettingsForm(settings);
   }, [settings]);
 
-  if (isLoading) return <LoadingSpinner />;
-
-  const handleSave = () => {
+  const handleSettingsSave = () => {
     updateSettings.mutate({
-      confirmationEmailEnabled: form.confirmationEmailEnabled,
-      reminderEmailEnabled: form.reminderEmailEnabled,
-      reminderHoursBefore: form.reminderHoursBefore,
+      confirmationEmailEnabled: settingsForm.confirmationEmailEnabled,
+      reminderEmailEnabled: settingsForm.reminderEmailEnabled,
+      reminderHoursBefore: settingsForm.reminderHoursBefore,
     });
   };
 
@@ -448,51 +477,187 @@ function NotificationsTab() {
     { value: '48', label: '48 uur' },
   ];
 
+  const openEdit = (template: any) => {
+    setEditingTemplate(template);
+    setEditForm({ subject: template.subject, body: template.body, isActive: template.isActive });
+    setPreview(null);
+  };
+
+  const handleSave = () => {
+    updateTemplate.mutate(
+      { type: editingTemplate.type, data: editForm },
+      { onSuccess: () => setEditingTemplate(null) }
+    );
+  };
+
+  const handlePreview = async () => {
+    try {
+      const result = await salonApi.previewEmailTemplate(editingTemplate.type);
+      setPreview(result);
+    } catch {
+      toast.error('Fout bij laden voorbeeld');
+    }
+  };
+
+  if (settingsLoading) return <LoadingSpinner />;
+
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h2 className="text-lg font-semibold text-gray-900">Notificatie-instellingen</h2>
+    <div className="space-y-8">
+      {/* Notification settings */}
+      <div className="space-y-6 max-w-2xl">
+        <h2 className="text-lg font-semibold text-gray-900">Notificatie-instellingen</h2>
 
-      <div className="space-y-4">
-        <label className="flex items-start gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={form.confirmationEmailEnabled ?? true}
-            onChange={(e) => setForm((prev) => ({ ...prev, confirmationEmailEnabled: e.target.checked }))}
-            className="w-4 h-4 mt-0.5 text-brand-600 border-gray-300 rounded"
-          />
-          <div>
-            <span className="text-sm font-medium text-gray-900">Bevestigingsmails</span>
-            <p className="text-sm text-gray-500">Stuur een bevestigingsmail naar de klant na het maken van een afspraak.</p>
-          </div>
-        </label>
+        <div className="space-y-4">
+          <label className="flex items-start gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settingsForm.confirmationEmailEnabled ?? true}
+              onChange={(e) => setSettingsForm((prev) => ({ ...prev, confirmationEmailEnabled: e.target.checked }))}
+              className="w-4 h-4 mt-0.5 text-brand-600 border-gray-300 rounded"
+            />
+            <div>
+              <span className="text-sm font-medium text-gray-900">Bevestigingsmails</span>
+              <p className="text-sm text-gray-500">Stuur een bevestigingsmail naar de klant na het maken van een afspraak.</p>
+            </div>
+          </label>
 
-        <label className="flex items-start gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={form.reminderEmailEnabled ?? true}
-            onChange={(e) => setForm((prev) => ({ ...prev, reminderEmailEnabled: e.target.checked }))}
-            className="w-4 h-4 mt-0.5 text-brand-600 border-gray-300 rounded"
-          />
-          <div>
-            <span className="text-sm font-medium text-gray-900">Herinneringsmails</span>
-            <p className="text-sm text-gray-500">Stuur een herinnering naar de klant voor de afspraak.</p>
-          </div>
-        </label>
+          <label className="flex items-start gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settingsForm.reminderEmailEnabled ?? true}
+              onChange={(e) => setSettingsForm((prev) => ({ ...prev, reminderEmailEnabled: e.target.checked }))}
+              className="w-4 h-4 mt-0.5 text-brand-600 border-gray-300 rounded"
+            />
+            <div>
+              <span className="text-sm font-medium text-gray-900">Herinneringsmails</span>
+              <p className="text-sm text-gray-500">Stuur een herinnering naar de klant voor de afspraak.</p>
+            </div>
+          </label>
 
-        {form.reminderEmailEnabled && (
-          <Select
-            label="Herinnering sturen"
-            options={reminderOptions}
-            value={String(form.reminderHoursBefore ?? 24)}
-            onChange={(e) => setForm((prev) => ({ ...prev, reminderHoursBefore: Number(e.target.value) }))}
-          />
-        )}
+          {settingsForm.reminderEmailEnabled && (
+            <Select
+              label="Herinnering sturen"
+              options={reminderOptions}
+              value={String(settingsForm.reminderHoursBefore ?? 24)}
+              onChange={(e) => setSettingsForm((prev) => ({ ...prev, reminderHoursBefore: Number(e.target.value) }))}
+            />
+          )}
+        </div>
+
+        <div className="pt-4 border-t border-gray-100">
+          <Button onClick={handleSettingsSave} loading={updateSettings.isPending}>
+            Opslaan
+          </Button>
+        </div>
       </div>
 
-      <div className="pt-4 border-t border-gray-100">
-        <Button onClick={handleSave} loading={updateSettings.isPending}>
-          Opslaan
-        </Button>
+      {/* Email templates */}
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">E-mail templates</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Pas de inhoud van automatische e-mails aan. Gebruik variabelen zoals %KLANT.NAAM% die automatisch worden ingevuld.
+          </p>
+        </div>
+
+        {templatesLoading ? (
+          <LoadingSpinner />
+        ) : (
+          <div className="divide-y divide-gray-200 border border-gray-200 rounded-lg">
+            {(templates || []).map((template: any) => (
+              <div key={template.type} className="flex items-center justify-between p-4 hover:bg-gray-50">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-gray-900">
+                    {TEMPLATE_LABELS[template.type] || template.type}
+                  </p>
+                  <p className="text-sm text-gray-500 truncate">{template.subject}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`text-xs px-2 py-1 rounded-full ${template.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                    {template.isActive ? 'Actief' : 'Inactief'}
+                  </span>
+                  <Button variant="secondary" size="sm" onClick={() => openEdit(template)}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Edit Modal */}
+        {editingTemplate && (
+          <Modal isOpen onClose={() => setEditingTemplate(null)} title={`Template bewerken: ${TEMPLATE_LABELS[editingTemplate.type] || editingTemplate.type}`} size="lg">
+            <div className="space-y-4">
+              <Input
+                label="Onderwerp"
+                value={editForm.subject}
+                onChange={(e) => setEditForm(f => ({ ...f, subject: e.target.value }))}
+              />
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Inhoud (HTML)</label>
+                <textarea
+                  value={editForm.body}
+                  onChange={(e) => setEditForm(f => ({ ...f, body: e.target.value }))}
+                  rows={12}
+                  className="input-field font-mono text-sm"
+                />
+              </div>
+
+              {/* Available variables */}
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="text-sm font-medium text-gray-700 mb-2">Beschikbare variabelen</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                  {TEMPLATE_VARIABLES.map(v => (
+                    <button
+                      key={v.var}
+                      type="button"
+                      className="text-left text-xs px-2 py-1 rounded hover:bg-gray-200 transition-colors"
+                      onClick={() => {
+                        navigator.clipboard.writeText(v.var);
+                        toast.success(`${v.var} gekopieerd`);
+                      }}
+                    >
+                      <code className="text-brand-600">{v.var}</code>
+                      <span className="text-gray-500 ml-1">- {v.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Active toggle */}
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={editForm.isActive}
+                  onChange={(e) => setEditForm(f => ({ ...f, isActive: e.target.checked }))}
+                  className="rounded border-gray-300 text-brand-600"
+                />
+                <span className="text-sm text-gray-700">Template actief</span>
+              </label>
+
+              {/* Preview */}
+              {preview && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-white">
+                  <p className="text-sm font-medium text-gray-500 mb-1">Voorbeeld:</p>
+                  <p className="font-semibold text-gray-900 mb-2">{preview.subject}</p>
+                  <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: preview.body }} />
+                </div>
+              )}
+
+              <div className="flex justify-between pt-4 border-t">
+                <Button variant="secondary" onClick={handlePreview}>
+                  Voorbeeld bekijken
+                </Button>
+                <div className="flex gap-3">
+                  <Button variant="secondary" onClick={() => setEditingTemplate(null)}>Annuleren</Button>
+                  <Button onClick={handleSave} loading={updateTemplate.isPending}>Opslaan</Button>
+                </div>
+              </div>
+            </div>
+          </Modal>
+        )}
       </div>
     </div>
   );
