@@ -6,6 +6,7 @@ interface AvailabilityParams {
   serviceId: string;
   employeeId?: string;
   date: string; // "YYYY-MM-DD"
+  ignoreBookingWindow?: boolean;
 }
 
 function timeToMinutes(time: string): number {
@@ -39,7 +40,7 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Tim
   const maxDate = new Date(today);
   maxDate.setDate(maxDate.getDate() + bookingWindow);
 
-  if (targetDate > maxDate || targetDate < today) return [];
+  if (!params.ignoreBookingWindow && (targetDate > maxDate || targetDate < today)) return [];
 
   // Get day of week (0=Sunday)
   const dayOfWeek = targetDate.getDay();

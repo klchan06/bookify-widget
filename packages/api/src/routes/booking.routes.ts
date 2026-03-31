@@ -61,7 +61,7 @@ const recurringBookingSchema = z.object({
   recurring: z.object({
     frequency: z.enum(['weekly', 'biweekly', 'monthly']),
     days: z.array(z.number().min(0).max(6)).optional(),
-    endAfter: z.number().int().min(1).max(52).optional(),
+    endAfter: z.number().int().min(1).max(520).optional(),
     endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   }),
 });
@@ -326,7 +326,7 @@ router.post('/recurring', authenticate, validate(recurringBookingSchema), async 
 
     for (const bookingDate of dates) {
       // Check availability
-      const slots = await getAvailableSlots({ salonId, serviceId, employeeId, date: bookingDate });
+      const slots = await getAvailableSlots({ salonId, serviceId, employeeId, date: bookingDate, ignoreBookingWindow: true });
       const isAvailable = slots.some((s) => s.time === startTime && s.available);
       if (!isAvailable) continue; // Skip unavailable dates
 

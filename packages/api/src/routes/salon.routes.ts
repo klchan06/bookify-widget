@@ -139,7 +139,7 @@ router.put('/email-templates/:type', authenticate, async (req: AuthRequest, res:
     const { subject, body, isActive } = req.body;
     const template = await prisma.emailTemplate.upsert({
       where: { salonId_type: { salonId: req.user!.salonId, type: req.params.type } },
-      create: { salonId: req.user!.salonId, type: req.params.type, subject, body },
+      create: { salonId: req.user!.salonId, type: req.params.type, subject: subject || '', body: body || '' },
       update: { ...(subject !== undefined && { subject }), ...(body !== undefined && { body }), ...(isActive !== undefined && { isActive }) },
     });
     res.json({ success: true, data: template });
