@@ -14,4 +14,9 @@ export const calendarApi = {
   sync: async (): Promise<void> => {
     await apiClient.post('/calendar/google/sync');
   },
+
+  getFeedUrls: async (): Promise<{ personalFeed: string; salonFeed: string }> => {
+    const res = await apiClient.get('/calendar/feed-url');
+    return res.data.data;
+  },
 };

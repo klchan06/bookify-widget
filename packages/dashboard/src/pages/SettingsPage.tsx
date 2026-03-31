@@ -259,7 +259,7 @@ function WidgetTab() {
   const { data: salon } = useSalon();
   const updateSettings = useUpdateSalonSettings();
   const [form, setForm] = useState<Partial<SalonSettings>>({});
-  const [copied, setCopied] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   useEffect(() => {
     if (settings) setForm(settings);
@@ -279,11 +279,11 @@ function WidgetTab() {
   const embedCode = `<script src="${window.location.origin}/widget.js" data-salon-id="${salon?.id || 'YOUR_SALON_ID'}"></script>`;
   const iframeCode = `<iframe src="${window.location.origin}/widget/${salon?.slug || 'your-salon'}" width="400" height="600" frameborder="0"></iframe>`;
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
-    setCopied(true);
+    setCopiedField(field);
     toast.success('Gekopieerd naar klembord');
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopiedField(null), 2000);
   };
 
   const fontOptions = [
@@ -387,36 +387,72 @@ function WidgetTab() {
       <div className="space-y-4 pt-6 border-t border-gray-100">
         <h3 className="text-lg font-semibold text-gray-900">Embedcode</h3>
 
+        {/* Salon ID */}
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">Script tag</label>
-          <div className="relative">
-            <pre className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded-lg text-xs overflow-x-auto break-all whitespace-pre-wrap">
-              {embedCode}
-            </pre>
+          <label className="block text-sm font-medium text-gray-700">Salon ID</label>
+          <div className="flex gap-2 items-center">
+            <code className="bg-gray-100 text-gray-800 px-3 py-2 rounded-lg text-sm font-mono flex-1 select-all">
+              {salon?.id || 'Laden...'}
+            </code>
             <button
-              onClick={() => copyToClipboard(embedCode)}
-              className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-white"
+              onClick={() => copyToClipboard(salon?.id || '', 'salonId')}
+              className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600 transition-colors"
+              title="Kopieer Salon ID"
             >
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copiedField === 'salonId' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
             </button>
           </div>
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">iFrame</label>
+          <label className="block text-sm font-medium text-gray-700">Script tag (aanbevolen)</label>
+          <p className="text-xs text-gray-500">Plak deze code in je website HTML, vlak voor de sluitende &lt;/body&gt; tag.</p>
+          <div className="relative">
+            <pre className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded-lg text-xs overflow-x-auto break-all whitespace-pre-wrap">
+              {embedCode}
+            </pre>
+            <button
+              onClick={() => copyToClipboard(embedCode, 'script')}
+              className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-white"
+            >
+              {copiedField === 'script' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">iFrame alternatief</label>
+          <p className="text-xs text-gray-500">Gebruik dit als alternatief wanneer je geen scripts kunt toevoegen.</p>
           <div className="relative">
             <pre className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded-lg text-xs overflow-x-auto break-all whitespace-pre-wrap">
               {iframeCode}
             </pre>
             <button
-              onClick={() => copyToClipboard(iframeCode)}
+              onClick={() => copyToClipboard(iframeCode, 'iframe')}
               className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-white"
             >
-              <Copy className="w-4 h-4" />
+              {copiedField === 'iframe' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Live Preview */}
+      {salon?.slug && (
+        <div className="space-y-3 pt-6 border-t border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900">Live voorbeeld</h3>
+          <p className="text-sm text-gray-500">Zo ziet de widget eruit op je website.</p>
+          <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+            <iframe
+              src={`${window.location.origin}/widget/${salon.slug}`}
+              width="100%"
+              height="600"
+              style={{ border: 'none' }}
+              title="Widget voorbeeld"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -665,6 +701,8 @@ function NotificationsTab() {
 
 function IntegrationsTab() {
   const [connecting, setConnecting] = useState(false);
+  const [feedUrls, setFeedUrls] = useState<{ personalFeed: string; salonFeed: string } | null>(null);
+  const [feedLoading, setFeedLoading] = useState(false);
 
   const handleConnectGoogle = async () => {
     setConnecting(true);
@@ -677,10 +715,94 @@ function IntegrationsTab() {
     }
   };
 
+  const loadFeedUrls = async () => {
+    setFeedLoading(true);
+    try {
+      const urls = await calendarApi.getFeedUrls();
+      setFeedUrls(urls);
+    } catch {
+      toast.error('Fout bij ophalen feed URLs');
+    } finally {
+      setFeedLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-2xl">
       <h2 className="text-lg font-semibold text-gray-900">Integraties</h2>
 
+      {/* iCal Feed Section */}
+      <div className="p-6 border border-gray-200 rounded-lg space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Agenda synchronisatie</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Synchroniseer afspraken met je iPhone, Outlook of andere agenda-app via een iCal feed URL.
+          </p>
+        </div>
+
+        {!feedUrls ? (
+          <Button onClick={loadFeedUrls} loading={feedLoading}>
+            Feed URLs genereren
+          </Button>
+        ) : (
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Jouw persoonlijke agenda
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={feedUrls.personalFeed}
+                    className="input-field text-sm flex-1 font-mono"
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                  />
+                  <Button size="sm" variant="secondary" onClick={() => {
+                    navigator.clipboard.writeText(feedUrls.personalFeed);
+                    toast.success('URL gekopieerd');
+                  }}>
+                    Kopieren
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Alleen jouw afspraken</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Hele salon agenda
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={feedUrls.salonFeed}
+                    className="input-field text-sm flex-1 font-mono"
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                  />
+                  <Button size="sm" variant="secondary" onClick={() => {
+                    navigator.clipboard.writeText(feedUrls.salonFeed);
+                    toast.success('URL gekopieerd');
+                  }}>
+                    Kopieren
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Alle afspraken van alle medewerkers</p>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
+              <p className="font-medium mb-2">Hoe te gebruiken:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><strong>iPhone:</strong> Instellingen &rarr; Agenda &rarr; Accounts &rarr; Voeg account toe &rarr; Anders &rarr; Voeg agenda-abonnement toe &rarr; Plak de URL</li>
+                <li><strong>Outlook:</strong> Agenda &rarr; Agenda toevoegen &rarr; Van internet &rarr; Plak de URL</li>
+                <li><strong>Google Agenda:</strong> Andere agenda&apos;s &rarr; Op URL &rarr; Plak de URL</li>
+              </ul>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Google Calendar Section */}
       <div className="p-6 border border-gray-200 rounded-lg">
         <div className="flex items-start gap-4">
           <div className="p-3 bg-blue-50 rounded-lg">
@@ -703,12 +825,6 @@ function IntegrationsTab() {
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="p-4 bg-gray-50 rounded-lg">
-        <p className="text-sm text-gray-500">
-          Meer integraties komen binnenkort beschikbaar. Denk aan Outlook Calendar, iCal, en meer.
-        </p>
       </div>
     </div>
   );
