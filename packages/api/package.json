@@ -12,7 +12,9 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@bookify/shared": "*",
@@ -39,7 +41,8 @@
     "@types/uuid": "^10.0.0",
     "prisma": "^6.2.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.2"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
