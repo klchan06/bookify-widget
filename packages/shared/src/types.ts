@@ -134,13 +134,25 @@ export type BookingStatus =
 export interface Customer {
   id: string;
   salonId: string;
+  customerNumber?: string;
+  firstName?: string;
+  lastName?: string;
   name: string;
   email: string;
   phone?: string;
+  dateOfBirth?: string;
+  address?: string;
+  city?: string;
+  postalCode?: string;
+  gender?: string;
   notes?: string;
+  tags?: string;
   totalBookings: number;
+  totalSpent: number;
   lastVisit?: string;
+  isActive: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 // ===== AVAILABILITY =====

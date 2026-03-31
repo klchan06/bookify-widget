@@ -122,20 +122,56 @@ router.post('/', validate(createBookingSchema), async (req: Request, res: Respon
     // Calculate end time
     const endTime = minutesToTime(timeToMinutes(startTime) + service.duration);
 
-    // Find or create customer
-    const customer = await prisma.customer.upsert({
-      where: { email_salonId: { email: customerEmail, salonId } },
-      create: {
+    // Smart customer dedup: match on email OR phone
+    let customer = await prisma.customer.findFirst({
+      where: {
         salonId,
-        name: customerName,
-        email: customerEmail,
-        phone: customerPhone,
-      },
-      update: {
-        name: customerName,
-        phone: customerPhone || undefined,
+        OR: [
+          { email: customerEmail },
+          ...(customerPhone ? [{ phone: customerPhone }] : []),
+        ],
       },
     });
+
+    if (customer) {
+      // Update existing customer with latest info
+      customer = await prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone || customer.phone,
+        },
+      });
+    } else {
+      // Generate customer number
+      const lastCustomer = await prisma.customer.findFirst({
+        where: { salonId },
+        orderBy: { createdAt: 'desc' },
+        select: { customerNumber: true },
+      });
+      const nextNum = lastCustomer?.customerNumber
+        ? parseInt(lastCustomer.customerNumber.replace('C', '')) + 1
+        : 1;
+      const customerNumber = `C${String(nextNum).padStart(6, '0')}`;
+
+      // Split name into first/last
+      const nameParts = customerName.trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      customer = await prisma.customer.create({
+        data: {
+          salonId,
+          customerNumber,
+          firstName,
+          lastName,
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone,
+        },
+      });
+    }
 
     // Create booking
     const booking = await prisma.booking.create({
@@ -195,12 +231,53 @@ router.post('/recurring', authenticate, validate(recurringBookingSchema), async 
       return;
     }
 
-    // Find or create customer
-    const customer = await prisma.customer.upsert({
-      where: { email_salonId: { email: customerEmail, salonId } },
-      create: { salonId, name: customerName, email: customerEmail, phone: customerPhone },
-      update: { name: customerName, phone: customerPhone || undefined },
+    // Smart customer dedup: match on email OR phone
+    let customer = await prisma.customer.findFirst({
+      where: {
+        salonId,
+        OR: [
+          { email: customerEmail },
+          ...(customerPhone ? [{ phone: customerPhone }] : []),
+        ],
+      },
     });
+
+    if (customer) {
+      customer = await prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone || customer.phone,
+        },
+      });
+    } else {
+      const lastCustomer = await prisma.customer.findFirst({
+        where: { salonId },
+        orderBy: { createdAt: 'desc' },
+        select: { customerNumber: true },
+      });
+      const nextNum = lastCustomer?.customerNumber
+        ? parseInt(lastCustomer.customerNumber.replace('C', '')) + 1
+        : 1;
+      const customerNumber = `C${String(nextNum).padStart(6, '0')}`;
+
+      const nameParts = customerName.trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      customer = await prisma.customer.create({
+        data: {
+          salonId,
+          customerNumber,
+          firstName,
+          lastName,
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone,
+        },
+      });
+    }
 
     // Generate dates based on recurring rule
     const dates: string[] = [];
@@ -497,6 +574,19 @@ router.put('/:id/status', authenticate, async (req: AuthRequest, res: Response, 
       include: { employee: true, service: true, customer: true },
     });
 
+    // Update customer totalSpent when booking is completed
+    if (status === 'completed' && booking.customer) {
+      const completedBookings = await prisma.booking.findMany({
+        where: { customerId: booking.customerId, status: 'completed' },
+        include: { service: true },
+      });
+      const totalSpent = completedBookings.reduce((sum: number, b: { service: { price: number } }) => sum + b.service.price, 0);
+      await prisma.customer.update({
+        where: { id: booking.customerId },
+        data: { totalSpent, lastVisit: new Date() },
+      });
+    }
+
     res.json({ success: true, data: booking });
   } catch (err) {
     next(err);
@@ -528,6 +618,20 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response
       const emailData = await buildEmailData(booking.id);
       if (emailData) sendBookingCancellation(emailData).catch(console.error);
     }
+
+    // Update customer totalSpent when booking is completed
+    if (status === 'completed' && booking.customer) {
+      const completedBookings = await prisma.booking.findMany({
+        where: { customerId: booking.customerId, status: 'completed' },
+        include: { service: true },
+      });
+      const totalSpent = completedBookings.reduce((sum: number, b: { service: { price: number } }) => sum + b.service.price, 0);
+      await prisma.customer.update({
+        where: { id: booking.customerId },
+        data: { totalSpent, lastVisit: new Date() },
+      });
+    }
+
     res.json({ success: true, data: booking });
   } catch (err) {
     next(err);
