@@ -19,18 +19,23 @@ try {
 export const prisma = new PrismaClient();
 
 beforeAll(async () => {
-  // Clean database in correct order respecting foreign keys
-  await prisma.booking.deleteMany();
-  await prisma.employeeService.deleteMany();
-  await prisma.employeeBreak.deleteMany();
-  await prisma.workingHours.deleteMany();
-  await prisma.specialDay.deleteMany();
-  await prisma.calendarConnection.deleteMany();
-  await prisma.customer.deleteMany();
-  await prisma.service.deleteMany();
-  await prisma.employee.deleteMany();
-  await prisma.salonSettings.deleteMany();
-  await prisma.salon.deleteMany();
+  // Only clean up test data (created by tests), not seed data
+  // Tests create their own salon with email 'test@barbershop.nl'
+  const testSalon = await prisma.salon.findFirst({ where: { email: 'test@barbershop.nl' } });
+  if (testSalon) {
+    await prisma.booking.deleteMany({ where: { salonId: testSalon.id } });
+    await prisma.employeeService.deleteMany({ where: { employee: { salonId: testSalon.id } } });
+    await prisma.employeeBreak.deleteMany({ where: { employee: { salonId: testSalon.id } } });
+    await prisma.workingHours.deleteMany({ where: { employee: { salonId: testSalon.id } } });
+    await prisma.specialDay.deleteMany({ where: { employee: { salonId: testSalon.id } } });
+    await prisma.calendarConnection.deleteMany({ where: { employee: { salonId: testSalon.id } } });
+    await prisma.customer.deleteMany({ where: { salonId: testSalon.id } });
+    await prisma.service.deleteMany({ where: { salonId: testSalon.id } });
+    await prisma.emailTemplate.deleteMany({ where: { salonId: testSalon.id } });
+    await prisma.employee.deleteMany({ where: { salonId: testSalon.id } });
+    await prisma.salonSettings.deleteMany({ where: { salonId: testSalon.id } });
+    await prisma.salon.delete({ where: { id: testSalon.id } });
+  }
 });
 
 afterAll(async () => {
