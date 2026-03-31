@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -28,7 +28,7 @@ jobs:
         run: npm ci
 
       - name: Turbo cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .turbo
           key: turbo-lint-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ github.sha }}
@@ -45,7 +45,7 @@ jobs:
     needs: [lint]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -57,7 +57,7 @@ jobs:
         run: npm ci
 
       - name: Turbo cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .turbo
           key: turbo-build-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ github.sha }}
@@ -90,7 +90,7 @@ jobs:
       DATABASE_URL: postgresql://bookify:bookify@localhost:5432/bookify_test
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -102,7 +102,7 @@ jobs:
         run: npm ci
 
       - name: Turbo cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .turbo
           key: turbo-test-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ github.sha }}
