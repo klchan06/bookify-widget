@@ -88,6 +88,9 @@ jobs:
           --health-retries=5
     env:
       DATABASE_URL: postgresql://bookify:bookify@localhost:5432/bookify_test
+      JWT_SECRET: ci-test-secret
+      NODE_ENV: development
+      PORT: 3001
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -101,14 +104,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Turbo cache
-        uses: actions/cache@v5
-        with:
-          path: .turbo
-          key: turbo-test-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-test-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}-
-            turbo-test-${{ runner.os }}-
+      - name: Generate Prisma client
+        run: npx -w packages/api prisma generate
+
+      - name: Push database schema
+        run: npx -w packages/api prisma db push --skip-generate
+
+      - name: Start API server
+        run: npx -w packages/api tsx src/index.ts &
+        env:
+          CORS_ORIGINS: http://localhost:3002,http://localhost:3003
+
+      - name: Wait for API
+        run: |
+          for i in $(seq 1 15); do
+            curl -s http://localhost:3001/api/health && break
+            sleep 1
+          done
 
       - name: Run tests
-        run: npm run test
+        run: npx -w packages/api vitest run
