@@ -51,20 +51,196 @@ function downloadCSV(customers: Customer[]) {
   URL.revokeObjectURL(url);
 }
 
+// Parse a single CSV line, respecting quoted values
+function parseCSVLine(line: string, sep: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === sep && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+// Detect separator (comma, semicolon, or tab)
+function detectSeparator(line: string): string {
+  const semis = (line.match(/;/g) || []).length;
+  const commas = (line.match(/,/g) || []).length;
+  const tabs = (line.match(/\t/g) || []).length;
+  if (tabs >= semis && tabs >= commas) return '\t';
+  if (semis >= commas) return ';';
+  return ',';
+}
+
+// Header field aliases (lowercase) → canonical field name
+const FIELD_ALIASES: Record<string, string> = {
+  // Dutch
+  'klantnr': 'customerNumber',
+  'klantnummer': 'customerNumber',
+  'voornaam': 'firstName',
+  'tussenvoegsel': 'middleName',
+  'achternaam': 'lastName',
+  'naam': 'name',
+  'volledige naam': 'name',
+  'initialen': 'initials',
+  'geboortedatum': 'dateOfBirth',
+  'geboorte': 'dateOfBirth',
+  'geslacht': 'gender',
+  'straat': 'street',
+  'huisnr': 'houseNumber',
+  'huisnummer': 'houseNumber',
+  'huisnr toev.': 'houseNumberAddition',
+  'huisnr toev': 'houseNumberAddition',
+  'toevoeging': 'houseNumberAddition',
+  'postcode': 'postalCode',
+  'plaats': 'city',
+  'stad': 'city',
+  'land': 'country',
+  'telefoon': 'phoneLandline',
+  'tel': 'phoneLandline',
+  'tel.': 'phoneLandline',
+  'tel mobiel': 'phone',
+  'tel. mobiel': 'phone',
+  'mobiel': 'phone',
+  'mobiele telefoon': 'phone',
+  'gsm': 'phone',
+  'e-mail': 'email',
+  'email': 'email',
+  'e mail': 'email',
+  'mail': 'email',
+  'status': 'status',
+  'gebruikersaccount': 'hasAccount',
+  'notities': 'notes',
+  'opmerking': 'notes',
+  // English
+  'first name': 'firstName',
+  'firstname': 'firstName',
+  'last name': 'lastName',
+  'lastname': 'lastName',
+  'phone': 'phone',
+  'mobile': 'phone',
+  'date of birth': 'dateOfBirth',
+  'dob': 'dateOfBirth',
+  'gender': 'gender',
+  'street': 'street',
+  'city': 'city',
+  'postal code': 'postalCode',
+  'zip': 'postalCode',
+  'zipcode': 'postalCode',
+  'country': 'country',
+  'notes': 'notes',
+};
+
+function normalizeGender(value: string): string | undefined {
+  if (!value) return undefined;
+  const v = value.trim().toLowerCase();
+  if (['m', 'man', 'male', 'heer', 'mr'].includes(v)) return 'male';
+  if (['v', 'vrouw', 'f', 'female', 'mevrouw', 'mw'].includes(v)) return 'female';
+  return undefined;
+}
+
+function normalizeDate(value: string): string | undefined {
+  if (!value || !value.trim()) return undefined;
+  const v = value.trim();
+  // Try DD-MM-YYYY or DD/MM/YYYY
+  let m = v.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  // Try YYYY-MM-DD
+  m = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  return undefined;
+}
+
 function parseCSV(text: string): Partial<Customer>[] {
-  const lines = text.trim().split('\n');
-  return lines.filter(l => l.trim()).map(line => {
-    const parts = line.split(/[;,\t]/).map(p => p.trim().replace(/^["']|["']$/g, ''));
-    const emailIdx = parts.findIndex(p => p.includes('@'));
-    const phoneIdx = parts.findIndex(p => /^0[1-9]/.test(p) || /^\+/.test(p));
+  const lines = text.replace(/\r\n/g, '\n').split('\n').filter((l) => l.trim());
+  if (lines.length === 0) return [];
 
-    const email = emailIdx >= 0 ? parts[emailIdx] : '';
-    const phone = phoneIdx >= 0 ? parts[phoneIdx] : '';
-    const nameIdx = parts.findIndex((_, i) => i !== emailIdx && i !== phoneIdx);
-    const name = nameIdx >= 0 ? parts[nameIdx] : '';
+  const sep = detectSeparator(lines[0]);
+  const headerCells = parseCSVLine(lines[0], sep).map((h) =>
+    h.toLowerCase().replace(/^["']|["']$/g, '').trim()
+  );
 
-    return { name, email, phone: phone || undefined };
+  // Detect if first row is a header (contains known field names)
+  const hasHeader = headerCells.some((h) => FIELD_ALIASES[h] !== undefined);
+
+  if (!hasHeader) {
+    // Fallback: heuristic per-row parsing
+    const result: Partial<Customer>[] = [];
+    for (const line of lines) {
+      const parts = parseCSVLine(line, sep);
+      const emailIdx = parts.findIndex((p) => p.includes('@'));
+      const phoneIdx = parts.findIndex((p) => /^(\+|0)[0-9 -]{6,}$/.test(p));
+      const email = emailIdx >= 0 ? parts[emailIdx] : '';
+      const phone = phoneIdx >= 0 ? parts[phoneIdx] : '';
+      const nameIdx = parts.findIndex((_, i) => i !== emailIdx && i !== phoneIdx && parts[i].length > 0);
+      const name = nameIdx >= 0 ? parts[nameIdx] : '';
+      if (!email && !phone) continue;
+      result.push({ name, email, phone: phone || undefined });
+    }
+    return result;
+  }
+
+  // Header-based parsing
+  const fieldMap: Record<number, string> = {};
+  headerCells.forEach((h, i) => {
+    const field = FIELD_ALIASES[h];
+    if (field) fieldMap[i] = field;
   });
+
+  return lines
+    .slice(1)
+    .map((line) => {
+      const parts = parseCSVLine(line, sep);
+      const raw: Record<string, string> = {};
+      parts.forEach((value, i) => {
+        const field = fieldMap[i];
+        if (field && value) raw[field] = value;
+      });
+
+      // Build full name
+      const nameParts = [raw.firstName, raw.middleName, raw.lastName].filter(Boolean);
+      const name = raw.name || nameParts.join(' ').trim();
+
+      // Build address
+      const addressParts = [raw.street, raw.houseNumber, raw.houseNumberAddition].filter(Boolean);
+      const address = addressParts.join(' ').trim();
+
+      // Use mobile if available, else landline
+      const phone = raw.phone || raw.phoneLandline;
+
+      // Skip rows with no email AND no phone
+      if (!raw.email && !phone) return null;
+
+      const customer: Partial<Customer> = {
+        firstName: raw.firstName || undefined,
+        lastName: [raw.middleName, raw.lastName].filter(Boolean).join(' ') || undefined,
+        name: name || raw.email || phone || 'Onbekend',
+        email: raw.email || '',
+        phone: phone || undefined,
+        dateOfBirth: normalizeDate(raw.dateOfBirth || ''),
+        gender: normalizeGender(raw.gender || ''),
+        address: address || undefined,
+        city: raw.city || undefined,
+        postalCode: raw.postalCode || undefined,
+      };
+
+      return customer;
+    })
+    .filter((c): c is Partial<Customer> => c !== null);
 }
 
 const formatPrice = (cents: number) =>

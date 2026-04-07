@@ -145,11 +145,11 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response, next) => 
   }
 });
 
-// POST /api/customers/import - Import customers from CSV/JSON
+// POST /api/customers/import - Import customers from CSV/JSON (optimized for large batches)
 router.post('/import', authenticate, async (req: AuthRequest, res: Response, next) => {
   try {
     const salonId = req.user!.salonId;
-    const { customers } = req.body; // Array of customer objects
+    const { customers } = req.body;
 
     if (!Array.isArray(customers) || customers.length === 0) {
       res.status(400).json({ success: false, error: 'Geen klanten opgegeven' });
@@ -161,76 +161,126 @@ router.post('/import', authenticate, async (req: AuthRequest, res: Response, nex
     let updated = 0;
     const errors: string[] = [];
 
+    // Pre-fetch all existing customers for this salon - dedup lookup is now O(1) instead of O(n)
+    const allExisting = await prisma.customer.findMany({
+      where: { salonId },
+      select: { id: true, email: true, phone: true, name: true, firstName: true, lastName: true, customerNumber: true },
+    });
+
+    // Build lookup maps
+    const byEmail = new Map<string, typeof allExisting[number]>();
+    const byPhone = new Map<string, typeof allExisting[number]>();
+    for (const c of allExisting) {
+      if (c.email) byEmail.set(c.email.toLowerCase(), c);
+      if (c.phone) byPhone.set(c.phone.replace(/[\s-]/g, ''), c);
+    }
+
+    // Find next customer number
+    let nextNum = 1;
+    for (const c of allExisting) {
+      if (c.customerNumber) {
+        const n = parseInt(c.customerNumber.replace(/\D/g, ''));
+        if (!isNaN(n) && n >= nextNum) nextNum = n + 1;
+      }
+    }
+
+    // Track new emails/phones added in this batch to avoid duplicates within the import
+    const seenEmails = new Set<string>();
+    const seenPhones = new Set<string>();
+    const toCreate: any[] = [];
+    const toUpdate: { id: string; data: any }[] = [];
+
     for (const c of customers) {
       try {
-        if (!c.email && !c.phone) {
+        const email = (c.email || '').trim().toLowerCase();
+        const phone = (c.phone || '').replace(/[\s-]/g, '');
+
+        if (!email && !phone) {
           skipped++;
-          errors.push(`${c.name || 'Onbekend'}: geen e-mail of telefoon`);
+          if (errors.length < 10) errors.push(`${c.name || 'Onbekend'}: geen e-mail of telefoon`);
           continue;
         }
 
-        // Check for existing customer
-        const existing = await prisma.customer.findFirst({
-          where: {
-            salonId,
-            OR: [
-              ...(c.email ? [{ email: c.email }] : []),
-              ...(c.phone ? [{ phone: c.phone }] : []),
-            ],
-          },
-        });
+        // Check for existing customer in DB
+        const existing = (email && byEmail.get(email)) || (phone && byPhone.get(phone));
 
         if (existing) {
-          // Update existing
-          await prisma.customer.update({
-            where: { id: existing.id },
+          toUpdate.push({
+            id: existing.id,
             data: {
               name: c.name || existing.name,
               firstName: c.firstName || existing.firstName,
               lastName: c.lastName || existing.lastName,
-              phone: c.phone || existing.phone,
-              email: c.email || existing.email,
-              dateOfBirth: c.dateOfBirth || existing.dateOfBirth,
-              address: c.address || existing.address,
-              city: c.city || existing.city,
-              postalCode: c.postalCode || existing.postalCode,
+              ...(phone && { phone }),
+              ...(email && { email }),
+              ...(c.dateOfBirth && { dateOfBirth: c.dateOfBirth }),
+              ...(c.address && { address: c.address }),
+              ...(c.city && { city: c.city }),
+              ...(c.postalCode && { postalCode: c.postalCode }),
+              ...(c.gender && { gender: c.gender }),
             },
           });
           updated++;
         } else {
-          // Generate customer number
-          const lastCust = await prisma.customer.findFirst({
-            where: { salonId },
-            orderBy: { createdAt: 'desc' },
-            select: { customerNumber: true },
-          });
-          const nextNum = lastCust?.customerNumber
-            ? parseInt(lastCust.customerNumber.replace('C', '')) + 1
-            : 1;
+          // Check for duplicate within this import batch
+          if (email && seenEmails.has(email)) {
+            skipped++;
+            if (errors.length < 10) errors.push(`${c.name || email}: duplicaat in import bestand`);
+            continue;
+          }
+          if (phone && seenPhones.has(phone)) {
+            skipped++;
+            if (errors.length < 10) errors.push(`${c.name || phone}: duplicaat in import bestand`);
+            continue;
+          }
 
-          await prisma.customer.create({
-            data: {
-              salonId,
-              customerNumber: `C${String(nextNum).padStart(6, '0')}`,
-              name: c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.email,
-              firstName: c.firstName,
-              lastName: c.lastName,
-              email: c.email || '',
-              phone: c.phone,
-              dateOfBirth: c.dateOfBirth,
-              address: c.address,
-              city: c.city,
-              postalCode: c.postalCode,
-              gender: c.gender,
-              notes: c.notes,
-            },
+          if (email) seenEmails.add(email);
+          if (phone) seenPhones.add(phone);
+
+          // Email is required by schema - synthesize one if missing
+          const finalEmail = email || `noemail-${phone || nextNum}@local.invalid`;
+
+          toCreate.push({
+            salonId,
+            customerNumber: `C${String(nextNum).padStart(6, '0')}`,
+            name: c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim() || finalEmail,
+            firstName: c.firstName || null,
+            lastName: c.lastName || null,
+            email: finalEmail,
+            phone: phone || null,
+            dateOfBirth: c.dateOfBirth || null,
+            address: c.address || null,
+            city: c.city || null,
+            postalCode: c.postalCode || null,
+            gender: c.gender || null,
+            notes: c.notes || null,
           });
+          nextNum++;
           imported++;
         }
       } catch (e) {
         skipped++;
-        errors.push(`${c.name || c.email || 'Onbekend'}: ${(e as Error).message}`);
+        if (errors.length < 10) errors.push(`${c.name || c.email || 'Onbekend'}: ${(e as Error).message}`);
       }
+    }
+
+    // Bulk insert new customers (chunks of 500)
+    for (let i = 0; i < toCreate.length; i += 500) {
+      const chunk = toCreate.slice(i, i + 500);
+      await prisma.customer.createMany({ data: chunk, skipDuplicates: true });
+    }
+
+    // Bulk update existing customers (one query each, but in parallel)
+    const updateChunks: typeof toUpdate[] = [];
+    for (let i = 0; i < toUpdate.length; i += 50) {
+      updateChunks.push(toUpdate.slice(i, i + 50));
+    }
+    for (const chunk of updateChunks) {
+      await Promise.all(
+        chunk.map((u) =>
+          prisma.customer.update({ where: { id: u.id }, data: u.data }).catch(() => null)
+        )
+      );
     }
 
     res.json({

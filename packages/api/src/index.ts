@@ -23,7 +23,7 @@ app.use(cors({
   origin: env.NODE_ENV === 'development' ? true : env.CORS_ORIGINS,
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // Rate limiting - only in production
 const publicLimiter = env.NODE_ENV === 'production'
