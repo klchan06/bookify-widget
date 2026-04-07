@@ -41,10 +41,36 @@ const app = express();
 
 // Global middleware
 app.use(helmet());
+
+// CORS: allow dev locally, * wildcard, vercel.app subdomains, and specific origins
 app.use(cors({
-  origin: env.NODE_ENV === 'development' ? true : env.CORS_ORIGINS,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+
+    // In dev: allow everything
+    if (env.NODE_ENV === 'development') return callback(null, true);
+
+    // Check explicit allow list
+    const allowed = env.CORS_ORIGINS.map((o) => o.trim()).filter(Boolean);
+
+    // Wildcard
+    if (allowed.includes('*')) return callback(null, true);
+
+    // Exact match
+    if (allowed.includes(origin)) return callback(null, true);
+
+    // Allow any vercel.app preview deployment
+    if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin)) return callback(null, true);
+
+    // Allow boekgerust.nl and any subdomain
+    if (/^https:\/\/(.*\.)?boekgerust\.nl$/.test(origin)) return callback(null, true);
+
+    callback(new Error(`CORS: origin ${origin} not allowed`));
+  },
   credentials: true,
 }));
+
 app.use(express.json({ limit: '50mb' }));
 
 // Rate limiting - only in production
