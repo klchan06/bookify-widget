@@ -2,6 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
+// SPA build for the widget preview AND the customer manage page.
+// For embedding the widget on external sites, customers use an iframe
+// pointing to this site, OR a separate library bundle (built via vite.lib.config.ts).
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -14,23 +17,7 @@ export default defineConfig({
     host: true,
   },
   build: {
-    lib: {
-      entry: resolve(__dirname, 'src/web-component.ts'),
-      formats: ['es', 'iife'],
-      name: 'BookifyWidget',
-      fileName: (format) => {
-        if (format === 'iife') return 'bookify-widget.js';
-        return 'bookify-widget.esm.js';
-      },
-    },
-    rollupOptions: {
-      output: {
-        assetFileNames: 'bookify-widget.[ext]',
-      },
-    },
-    cssCodeSplit: false,
-  },
-  define: {
-    'process.env.NODE_ENV': JSON.stringify('production'),
+    outDir: 'dist',
+    sourcemap: false,
   },
 });
