@@ -31,6 +31,8 @@ async function main() {
       city: 'Almere',
       postalCode: '1315 HR',
       description: 'De beste barbershop van Almere. Stijlvol knippen, baard trimmen en meer.',
+      website: 'https://blessedbarbers.nl',
+      logoUrl: 'https://blessedbarbers.nl/wp-content/uploads/2024/09/CF530DFB-0503-4441-B114-545D6C17DC10_4_5005_c.png',
       timezone: 'Europe/Amsterdam',
       currency: 'EUR',
     },
@@ -101,14 +103,14 @@ async function main() {
 
   await prisma.emailTemplate.createMany({ data: defaultTemplates });
 
-  const passwordHash = await bcrypt.hash('password123', 12);
+  const passwordHash = await bcrypt.hash('Blessed2024', 12);
 
-  // Create employees
+  // Create employees - Jayand is the owner of Blessed Barbers
   const khalid = await prisma.employee.create({
     data: {
       salonId: salon.id,
-      name: 'Khalid B.',
-      email: 'khalid@blessedbarbers.nl',
+      name: 'Jayand Raghosing',
+      email: 'Jayand_1997@hotmail.com',
       phone: '06-12345678',
       role: 'owner',
       passwordHash,
@@ -331,7 +333,7 @@ async function main() {
 
   console.log('Seed complete!');
   console.log(`Salon: ${salon.name} (ID: ${salon.id})`);
-  console.log(`Login: khalid@blessedbarbers.nl / password123`);
+  console.log(`Login: Jayand_1997@hotmail.com / Blessed2024`);
 }
 
 main()

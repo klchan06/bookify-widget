@@ -83,6 +83,7 @@ async function buildEmailData(bookingId: string) {
     salonAddress: booking.salon.address,
     salonCity: booking.salon.city,
     salonPhone: booking.salon.phone,
+    salonLogo: booking.salon.logoUrl,
     employeeName: booking.employee.name,
     serviceName: booking.service.name,
     serviceDuration: booking.service.duration,

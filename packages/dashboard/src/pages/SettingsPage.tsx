@@ -89,19 +89,8 @@ function BusinessTab() {
       postalCode: form.postalCode,
       description: form.description,
       website: form.website,
+      logoUrl: form.logoUrl,
     });
-  };
-
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const { url } = await salonApi.uploadLogo(file);
-      setForm((prev) => ({ ...prev, logoUrl: url }));
-      toast.success('Logo geupload');
-    } catch {
-      toast.error('Fout bij uploaden logo');
-    }
   };
 
   return (
@@ -111,18 +100,29 @@ function BusinessTab() {
       {/* Logo */}
       <div className="space-y-2">
         <label className="block text-sm font-medium text-gray-700">Logo</label>
-        <div className="flex items-center gap-4">
+        <div className="flex items-start gap-4">
           {form.logoUrl ? (
-            <img src={form.logoUrl} alt="Logo" className="w-16 h-16 rounded-lg object-cover" />
+            <img
+              src={form.logoUrl}
+              alt="Logo"
+              className="w-20 h-20 rounded-lg object-contain bg-gray-50 border border-gray-200 flex-shrink-0"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
           ) : (
-            <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400">
+            <div className="w-20 h-20 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 flex-shrink-0">
               <Building2 className="w-8 h-8" />
             </div>
           )}
-          <label className="cursor-pointer">
-            <span className="btn-secondary inline-block text-sm">Logo uploaden</span>
-            <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-          </label>
+          <div className="flex-1">
+            <Input
+              value={form.logoUrl || ''}
+              onChange={(e) => update('logoUrl', e.target.value)}
+              placeholder="https://voorbeeld.nl/logo.png"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Plak hier de URL van je logo. Het logo verschijnt in bevestigingsmails naar klanten.
+            </p>
+          </div>
         </div>
       </div>
 

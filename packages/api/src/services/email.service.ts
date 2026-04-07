@@ -22,6 +22,7 @@ interface BookingEmailData {
   salonAddress?: string;
   salonCity?: string;
   salonPhone?: string;
+  salonLogo?: string | null;
   employeeName: string;
   serviceName: string;
   serviceDuration?: number;
@@ -75,10 +76,14 @@ function baseTemplate(content: string): string {
 }
 
 function bookingCardHtml(data: BookingEmailData, headerColor: string, headerTitle: string, headerSubtitle: string): string {
+  const headerLogo = data.salonLogo
+    ? `<img src="${data.salonLogo}" alt="${data.salonName}" style="max-width:120px;max-height:80px;margin:0 auto 16px auto;display:block;border-radius:12px;background:#ffffff;padding:8px;" />`
+    : `<div style="display:inline-block;width:64px;height:64px;background:rgba(255,255,255,0.15);border-radius:50%;line-height:64px;font-size:32px;margin-bottom:16px;text-align:center;">&#10003;</div>`;
+
   return `
     <tr>
       <td style="background:linear-gradient(135deg,${headerColor},#1a1a2e);padding:40px 32px;text-align:center;">
-        <div style="display:inline-block;width:64px;height:64px;background:rgba(255,255,255,0.15);border-radius:50%;line-height:64px;font-size:32px;margin-bottom:16px;">&#10003;</div>
+        ${headerLogo}
         <h1 style="margin:0 0 8px 0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:-0.5px;">${headerTitle}</h1>
         <p style="margin:0;color:rgba(255,255,255,0.85);font-size:15px;">${headerSubtitle}</p>
       </td>
