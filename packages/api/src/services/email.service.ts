@@ -3,7 +3,14 @@ import { env } from '../utils/env.js';
 import { prisma } from '../utils/prisma.js';
 import { generateManageToken } from '../utils/manageToken.js';
 
-const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
+// Lazy init - process.env is read fresh each time we need to send
+let _resend: Resend | null = null;
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY || env.RESEND_API_KEY;
+  if (!key) return null;
+  if (!_resend) _resend = new Resend(key);
+  return _resend;
+}
 
 interface BookingEmailData {
   bookingId: string;
@@ -234,18 +241,21 @@ function buildTemplateVars(data: BookingEmailData): Record<string, string> {
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+  const resend = getResend();
   if (!resend) {
-    console.log(`[Email] Would send to ${to}: ${subject}`);
+    console.log(`[Email] No RESEND_API_KEY set - would send to ${to}: ${subject}`);
     return;
   }
 
   try {
-    await resend.emails.send({
-      from: env.RESEND_FROM_EMAIL,
+    const fromAddress = process.env.RESEND_FROM_EMAIL || env.RESEND_FROM_EMAIL;
+    const result = await resend.emails.send({
+      from: fromAddress,
       to,
       subject,
       html,
     });
+    console.log(`[Email] Sent to ${to}: ${subject}`, result.data?.id || '');
   } catch (err) {
     console.error('[Email] Failed to send:', err);
   }
