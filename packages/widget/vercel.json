@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "cd ../.. && npm install --include=dev && npm run build -w @bookify/shared && npm run build -w @bookify/widget",
+  "outputDirectory": "dist",
+  "installCommand": "echo 'Install handled by buildCommand'",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/manage/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
