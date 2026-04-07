@@ -9,3 +9,4 @@ dist/
 coverage/
 .next/
 .claude/
+.env.local-backup

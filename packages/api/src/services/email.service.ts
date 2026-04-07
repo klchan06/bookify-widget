@@ -255,7 +255,11 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
       subject,
       html,
     });
-    console.log(`[Email] Sent to ${to}: ${subject}`, result.data?.id || '');
+    if (result.error) {
+      console.error(`[Email] REJECTED by Resend for ${to}: ${result.error.message || JSON.stringify(result.error)}`);
+      return;
+    }
+    console.log(`[Email] Sent to ${to}: ${subject} (id: ${result.data?.id})`);
   } catch (err) {
     console.error('[Email] Failed to send:', err);
   }
