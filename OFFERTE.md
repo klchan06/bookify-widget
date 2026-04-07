@@ -1,4 +1,4 @@
-# Offerte - Bookify Widget
+# Offerte - Boekgerust Widget
 
 **Online Afsprakensysteem (Widget/Plugin)**
 

@@ -61,7 +61,7 @@ function addDays(dateStr: string, days: number): string {
   return d.toISOString().split('T')[0];
 }
 
-describe('Bookify Functional Tests', () => {
+describe('Boekgerust Functional Tests', () => {
   let testServiceId = '';
   let testEmployee2Id = '';
 

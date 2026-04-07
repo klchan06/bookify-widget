@@ -1,10 +1,10 @@
-# Bookify Dashboard - Gebruikershandleiding
+# Boekgerust Dashboard - Gebruikershandleiding
 
 ## Aan de slag
 
 ### Account aanmaken
 
-1. Ga naar het dashboard op `https://dashboard.bookify.nl`
+1. Ga naar het dashboard op `https://dashboard.boekgerust.nl`
 2. Klik op **Registreren**
 3. Vul de gegevens in:
    - Salon/bedrijfsnaam
@@ -18,7 +18,7 @@ Na registratie word je automatisch ingelogd en kom je op het dashboard.
 
 ### Inloggen
 
-1. Ga naar `https://dashboard.bookify.nl`
+1. Ga naar `https://dashboard.boekgerust.nl`
 2. Vul je e-mailadres en wachtwoord in
 3. Klik op **Inloggen**
 
@@ -246,12 +246,12 @@ Synchroniseer afspraken met Google Calendar.
 1. Ga naar **Instellingen** > **Integraties**
 2. Klik op **Google Calendar verbinden**
 3. Log in met je Google account
-4. Geef Bookify toegang tot je agenda
+4. Geef Boekgerust toegang tot je agenda
 5. Selecteer de agenda die je wilt synchroniseren
 
 ### Hoe het werkt
 
-- Nieuwe afspraken in Bookify worden automatisch aan je Google Calendar toegevoegd
+- Nieuwe afspraken in Boekgerust worden automatisch aan je Google Calendar toegevoegd
 - Bestaande afspraken in Google Calendar worden meegenomen bij het bepalen van beschikbaarheid
 - Wijzigingen en annuleringen worden automatisch gesynchroniseerd
 

@@ -1,4 +1,4 @@
-# Bookify Widget
+# Boekgerust Widget
 
 Een embeddable afspraken-kalender widget voor websites. Ideaal voor kapsalons, klinieken, studios en andere dienstverleners die online boekingen willen aanbieden.
 
@@ -34,10 +34,10 @@ npm run dev
 
 ```html
 <!-- Optie 1: Script tag -->
-<script src="https://cdn.bookify.nl/widget.js" data-salon-id="abc123"></script>
+<script src="https://cdn.boekgerust.nl/widget.js" data-salon-id="abc123"></script>
 
 <!-- Optie 2: iframe -->
-<iframe src="https://app.bookify.nl/embed/abc123" width="100%" height="600"></iframe>
+<iframe src="https://app.boekgerust.nl/embed/abc123" width="100%" height="600"></iframe>
 ```
 
 ## Licentie

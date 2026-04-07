@@ -44,7 +44,7 @@ export function LoginPage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-4">
             <Calendar className="w-10 h-10 text-brand-600" />
-            <span className="text-3xl font-bold text-gray-900">Bookify</span>
+            <span className="text-3xl font-bold text-gray-900">Boekgerust</span>
           </div>
           <p className="text-gray-500">Log in op je dashboard</p>
         </div>

@@ -1,7 +1,7 @@
-# Bookify Widget
+# Boekgerust Widget
 
 ## Project
-Online afsprakensysteem als embeddable widget/plugin voor dienstverleners (kapsalons etc.). Vergelijkbaar met onlineafspraken.nl.
+Online afsprakensysteem als embeddable widget/plugin voor dienstverleners (kapsalons etc.). Vergelijkbaar met onlineafspraken.nl. Domein: boekgerust.nl.
 
 ## Architecture
 - Monorepo met Turborepo

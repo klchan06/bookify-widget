@@ -17,7 +17,7 @@ function generateICal(salon: any, bookings: any[]): string {
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Bookify//Bookify Widget//NL',
+    'PRODID:-//Boekgerust//Boekgerust Widget//NL',
     `X-WR-CALNAME:${salon.name} - Afspraken`,
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
@@ -29,7 +29,7 @@ function generateICal(salon: any, bookings: any[]): string {
     const created = new Date(booking.createdAt).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 
     lines.push('BEGIN:VEVENT');
-    lines.push(`UID:${booking.id}@bookify`);
+    lines.push(`UID:${booking.id}@boekgerust`);
     lines.push(`DTSTART;TZID=Europe/Amsterdam:${dtStart}`);
     lines.push(`DTEND;TZID=Europe/Amsterdam:${dtEnd}`);
     lines.push(`DTSTAMP:${created}`);
@@ -100,7 +100,7 @@ router.get('/feed/:token.ics', async (req: Request, res: Response, next) => {
     const ical = generateICal(salon, bookings);
 
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
-    res.setHeader('Content-Disposition', 'inline; filename="bookify-calendar.ics"');
+    res.setHeader('Content-Disposition', 'inline; filename="boekgerust-calendar.ics"');
     res.send(ical);
   } catch (err) {
     next(err);

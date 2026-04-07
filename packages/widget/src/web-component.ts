@@ -68,7 +68,7 @@ class BookifyWidgetElement extends HTMLElement {
     const config = this.getConfig();
     if (!config.salonId || !config.apiUrl) {
       console.warn(
-        '[Bookify Widget] Missing required attributes: salon-id, api-url'
+        '[Boekgerust Widget] Missing required attributes: salon-id, api-url'
       );
       return;
     }
@@ -80,8 +80,8 @@ class BookifyWidgetElement extends HTMLElement {
 }
 
 // Register custom element
-if (!customElements.get('bookify-widget')) {
-  customElements.define('bookify-widget', BookifyWidgetElement);
+if (!customElements.get('boekgerust-widget')) {
+  customElements.define('boekgerust-widget', BookifyWidgetElement);
 }
 
 export { BookifyWidgetElement };

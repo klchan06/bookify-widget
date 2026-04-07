@@ -63,7 +63,7 @@ function baseTemplate(title: string, content: string): string {
   <div class="container">
     <div class="header"><h1>${title}</h1></div>
     <div class="body">${content}</div>
-    <div class="footer">Dit is een automatisch bericht van Bookify.</div>
+    <div class="footer">Dit is een automatisch bericht van Boekgerust.</div>
   </div>
 </body>
 </html>`;

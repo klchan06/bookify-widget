@@ -21,12 +21,12 @@ export function generateIcsFile(params: {
   const dtEnd = formatDateTime(date, endTime);
   const now = new Date();
   const dtStamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const uid = `bookify-${Date.now()}-${Math.random().toString(36).slice(2)}@bookify.nl`;
+  const uid = `boekgerust-${Date.now()}-${Math.random().toString(36).slice(2)}@boekgerust.nl`;
 
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Bookify//Widget//NL',
+    'PRODID:-//Boekgerust//Widget//NL',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',

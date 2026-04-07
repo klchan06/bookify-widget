@@ -44,7 +44,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="flex items-center justify-between h-16 px-6 border-b border-white/10">
           <div className="flex items-center gap-2">
             <Calendar className="w-7 h-7 text-brand-400" />
-            <span className="text-xl font-bold text-white">Bookify</span>
+            <span className="text-xl font-bold text-white">Boekgerust</span>
           </div>
           <button
             onClick={onClose}

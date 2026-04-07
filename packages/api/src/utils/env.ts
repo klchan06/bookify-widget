@@ -4,7 +4,7 @@ export const env = {
   JWT_SECRET: process.env.JWT_SECRET || 'dev-secret-change-in-production',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
   RESEND_API_KEY: process.env.RESEND_API_KEY || '',
-  RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL || 'Bookify <noreply@bookify.nl>',
+  RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL || 'Boekgerust <noreply@boekgerust.nl>',
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
   GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/calendar/google/callback',

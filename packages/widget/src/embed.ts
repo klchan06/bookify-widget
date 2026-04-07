@@ -1,11 +1,11 @@
 /**
- * Embed script for Bookify Widget
+ * Embed script for Boekgerust Widget
  *
  * Usage:
- * <script src="https://cdn.bookify.nl/widget.js" data-salon-id="abc123"></script>
+ * <script src="https://cdn.boekgerust.nl/widget.js" data-salon-id="abc123"></script>
  *
  * Optional data attributes:
- * - data-api-url (defaults to https://api.bookify.nl)
+ * - data-api-url (defaults to https://api.boekgerust.nl)
  * - data-primary-color
  * - data-accent-color
  * - data-locale (nl | en)
@@ -21,21 +21,21 @@ import './web-component';
     document.querySelector('script[data-salon-id]');
 
   if (!currentScript) {
-    console.warn('[Bookify] Could not find script tag with data-salon-id');
+    console.warn('[Boekgerust] Could not find script tag with data-salon-id');
     return;
   }
 
   const salonId = currentScript.getAttribute('data-salon-id');
   if (!salonId) {
-    console.warn('[Bookify] Missing data-salon-id attribute');
+    console.warn('[Boekgerust] Missing data-salon-id attribute');
     return;
   }
 
   const apiUrl =
-    currentScript.getAttribute('data-api-url') || 'https://api.bookify.nl';
+    currentScript.getAttribute('data-api-url') || 'https://api.boekgerust.nl';
 
   // Create the widget element
-  const widget = document.createElement('bookify-widget');
+  const widget = document.createElement('boekgerust-widget');
   widget.setAttribute('salon-id', salonId);
   widget.setAttribute('api-url', apiUrl);
 

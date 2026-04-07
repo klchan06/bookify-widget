@@ -1,4 +1,4 @@
-# Bookify Widget - Ontwikkelplan
+# Boekgerust Widget - Ontwikkelplan
 
 ## Overzicht
 
@@ -37,7 +37,7 @@ We verdelen het werk over **5 parallelle agent-teams** die gelijktijdig kunnen w
 - [ ] Stap 3: Datum & tijd kiezen (kalender view)
 - [ ] Stap 4: Gegevens invullen (naam, email, telefoon)
 - [ ] Stap 5: Bevestiging
-- [ ] Web Component wrapper (`<bookify-widget>`)
+- [ ] Web Component wrapper (`<boekgerust-widget>`)
 - [ ] iframe embed modus
 - [ ] Theming systeem (kleuren, fonts via CSS variables)
 - [ ] Responsive design (mobile-first)

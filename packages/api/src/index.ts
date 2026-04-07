@@ -63,7 +63,7 @@ app.use(errorHandler);
 
 // Start server
 app.listen(env.PORT, '0.0.0.0', () => {
-  console.log(`Bookify API running on port ${env.PORT}`);
+  console.log(`Boekgerust API running on port ${env.PORT}`);
   console.log(`Environment: ${env.NODE_ENV}`);
 });
 

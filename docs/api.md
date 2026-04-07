@@ -1,4 +1,4 @@
-# Bookify API Documentatie
+# Boekgerust API Documentatie
 
 Base URL: `http://localhost:3000/api`
 

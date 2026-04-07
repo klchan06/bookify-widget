@@ -44,7 +44,7 @@ function getNextSunday(): string {
   return date.toISOString().split('T')[0];
 }
 
-describe('Bookify API - Complete Feature Test', () => {
+describe('Boekgerust API - Complete Feature Test', () => {
   let token: string;
   let salonId: string;
   let employeeId: string; // owner
