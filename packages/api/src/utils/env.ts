@@ -11,4 +11,5 @@ export const env = {
   CORS_ORIGINS: (process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:5173').split(','),
   NODE_ENV: process.env.NODE_ENV || 'development',
   APP_URL: process.env.APP_URL || 'http://localhost:3000',
+  WIDGET_URL: process.env.WIDGET_URL || 'http://localhost:3002',
 } as const;

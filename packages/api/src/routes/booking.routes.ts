@@ -11,6 +11,7 @@ import {
   sendBookingUpdate,
 } from '../services/email.service.js';
 import { syncBookingToGoogle } from '../services/calendar.service.js';
+import { verifyManageToken } from '../utils/manageToken.js';
 import crypto from 'crypto';
 
 const router = Router();
@@ -73,6 +74,7 @@ async function buildEmailData(bookingId: string) {
   });
   if (!booking) return null;
   return {
+    bookingId: booking.id,
     customerName: booking.customer.name,
     customerEmail: booking.customer.email,
     salonId: booking.salon.id,
@@ -465,6 +467,149 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response, next) => {
       pageSize: size,
       totalPages: Math.ceil(total / size),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/bookings/manage/:token - Get booking details by token (public)
+router.get('/manage/:token', async (req: Request, res: Response, next) => {
+  try {
+    const bookingId = verifyManageToken(req.params.token);
+    if (!bookingId) {
+      res.status(404).json({ success: false, error: 'Ongeldige of verlopen link' });
+      return;
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        employee: { select: { id: true, name: true } },
+        service: true,
+        customer: { select: { name: true, email: true, phone: true } },
+        salon: { select: { id: true, name: true, address: true, city: true, phone: true, email: true } },
+      },
+    });
+
+    if (!booking) {
+      res.status(404).json({ success: false, error: 'Afspraak niet gevonden' });
+      return;
+    }
+
+    res.json({ success: true, data: booking });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/bookings/manage/:token/cancel - Cancel booking by token (public)
+router.post('/manage/:token/cancel', async (req: Request, res: Response, next) => {
+  try {
+    const bookingId = verifyManageToken(req.params.token);
+    if (!bookingId) {
+      res.status(404).json({ success: false, error: 'Ongeldige of verlopen link' });
+      return;
+    }
+
+    const existing = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { service: true, salon: true },
+    });
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Afspraak niet gevonden' });
+      return;
+    }
+
+    if (existing.status === 'cancelled') {
+      res.status(400).json({ success: false, error: 'Deze afspraak is al geannuleerd' });
+      return;
+    }
+
+    const settings = await prisma.salonSettings.findUnique({ where: { salonId: existing.salonId } });
+    const cancellationWindowHours = settings?.cancellationWindow || 24;
+    const bookingDateTime = new Date(`${existing.date}T${existing.startTime}:00`);
+    const hoursUntilBooking = (bookingDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
+
+    if (hoursUntilBooking < cancellationWindowHours) {
+      res.status(400).json({
+        success: false,
+        error: `Annulering moet minimaal ${cancellationWindowHours} uur van tevoren. Neem contact op met de salon.`,
+      });
+      return;
+    }
+
+    const booking = await prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: 'cancelled', cancelReason: req.body?.reason || 'Geannuleerd door klant' },
+      include: { employee: true, service: true, customer: true, salon: true },
+    });
+
+    const emailData = await buildEmailData(booking.id);
+    if (emailData) {
+      sendBookingCancellation(emailData).catch(console.error);
+    }
+
+    res.json({ success: true, data: booking, message: 'Afspraak geannuleerd' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/bookings/manage/:token/reschedule - Reschedule booking by token (public)
+router.post('/manage/:token/reschedule', async (req: Request, res: Response, next) => {
+  try {
+    const bookingId = verifyManageToken(req.params.token);
+    if (!bookingId) {
+      res.status(404).json({ success: false, error: 'Ongeldige of verlopen link' });
+      return;
+    }
+
+    const { date, startTime } = req.body;
+    if (!date || !startTime) {
+      res.status(400).json({ success: false, error: 'Datum en tijd zijn verplicht' });
+      return;
+    }
+
+    const existing = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { service: true },
+    });
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Afspraak niet gevonden' });
+      return;
+    }
+
+    if (existing.status === 'cancelled') {
+      res.status(400).json({ success: false, error: 'Deze afspraak is geannuleerd' });
+      return;
+    }
+
+    const slots = await getAvailableSlots({
+      salonId: existing.salonId,
+      serviceId: existing.serviceId,
+      employeeId: existing.employeeId,
+      date,
+    });
+    const isAvailable = slots.some((s) => s.time === startTime && s.available);
+    if (!isAvailable) {
+      res.status(400).json({ success: false, error: 'Dit tijdstip is niet meer beschikbaar' });
+      return;
+    }
+
+    const endTime = minutesToTime(timeToMinutes(startTime) + existing.service.duration);
+
+    const booking = await prisma.booking.update({
+      where: { id: bookingId },
+      data: { date, startTime, endTime },
+      include: { employee: true, service: true, customer: true },
+    });
+
+    const emailData = await buildEmailData(booking.id);
+    if (emailData) {
+      sendBookingUpdate(emailData).catch(console.error);
+    }
+
+    res.json({ success: true, data: booking, message: 'Afspraak gewijzigd' });
   } catch (err) {
     next(err);
   }

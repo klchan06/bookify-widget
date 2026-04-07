@@ -41,6 +41,7 @@ export function startReminderCron(): void {
 
         for (const booking of bookings) {
           await sendBookingReminder({
+            bookingId: booking.id,
             customerName: booking.customer.name,
             customerEmail: booking.customer.email,
             salonId: booking.salon.id,

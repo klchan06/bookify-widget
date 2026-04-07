@@ -1,10 +1,12 @@
 import { Resend } from 'resend';
 import { env } from '../utils/env.js';
 import { prisma } from '../utils/prisma.js';
+import { generateManageToken } from '../utils/manageToken.js';
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
 interface BookingEmailData {
+  bookingId: string;
   customerName: string;
   customerEmail: string;
   salonId: string;
@@ -40,42 +42,161 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function baseTemplate(title: string, content: string): string {
-  return `
-<!DOCTYPE html>
-<html>
+function baseTemplate(content: string): string {
+  return `<!DOCTYPE html>
+<html lang="nl">
 <head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f4f5; margin: 0; padding: 20px; }
-    .container { max-width: 560px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    .header { background: #6366f1; color: #fff; padding: 24px 32px; }
-    .header h1 { margin: 0; font-size: 20px; }
-    .body { padding: 32px; }
-    .detail { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
-    .detail:last-child { border-bottom: none; }
-    .label { color: #71717a; }
-    .value { font-weight: 600; }
-    .footer { padding: 16px 32px; background: #fafafa; font-size: 13px; color: #a1a1aa; text-align: center; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boekgerust</title>
 </head>
-<body>
-  <div class="container">
-    <div class="header"><h1>${title}</h1></div>
-    <div class="body">${content}</div>
-    <div class="footer">Dit is een automatisch bericht van Boekgerust.</div>
-  </div>
+<body style="margin:0;padding:0;background-color:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f5f5f7;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:560px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);">
+          ${content}
+        </table>
+        <p style="margin:24px 0 0 0;font-size:12px;color:#86868b;text-align:center;">
+          Powered by Boekgerust &middot; <a href="https://boekgerust.nl" style="color:#86868b;text-decoration:underline;">boekgerust.nl</a>
+        </p>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 }
 
+function bookingCardHtml(data: BookingEmailData, headerColor: string, headerTitle: string, headerSubtitle: string): string {
+  return `
+    <tr>
+      <td style="background:linear-gradient(135deg,${headerColor},#1a1a2e);padding:40px 32px;text-align:center;">
+        <div style="display:inline-block;width:64px;height:64px;background:rgba(255,255,255,0.15);border-radius:50%;line-height:64px;font-size:32px;margin-bottom:16px;">&#10003;</div>
+        <h1 style="margin:0 0 8px 0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:-0.5px;">${headerTitle}</h1>
+        <p style="margin:0;color:rgba(255,255,255,0.85);font-size:15px;">${headerSubtitle}</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:32px;">
+        <p style="margin:0 0 24px 0;font-size:16px;color:#1d1d1f;line-height:1.5;">
+          Beste <strong>${data.customerName}</strong>,
+        </p>
+        <p style="margin:0 0 24px 0;font-size:15px;color:#515154;line-height:1.6;">
+          Je afspraak bij <strong>${data.salonName}</strong>.
+        </p>
+
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f5f5f7;border-radius:12px;padding:24px;margin-bottom:24px;">
+          <tr>
+            <td>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e5ea;">
+                    <p style="margin:0;font-size:12px;color:#86868b;text-transform:uppercase;letter-spacing:0.5px;">Dienst</p>
+                    <p style="margin:4px 0 0 0;font-size:16px;color:#1d1d1f;font-weight:600;">${data.serviceName}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e5ea;">
+                    <p style="margin:0;font-size:12px;color:#86868b;text-transform:uppercase;letter-spacing:0.5px;">Datum &amp; Tijd</p>
+                    <p style="margin:4px 0 0 0;font-size:16px;color:#1d1d1f;font-weight:600;">${formatDate(data.date)}</p>
+                    <p style="margin:2px 0 0 0;font-size:15px;color:#515154;">${data.startTime} - ${data.endTime}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e5ea;">
+                    <p style="margin:0;font-size:12px;color:#86868b;text-transform:uppercase;letter-spacing:0.5px;">Medewerker</p>
+                    <p style="margin:4px 0 0 0;font-size:16px;color:#1d1d1f;font-weight:600;">${data.employeeName}</p>
+                  </td>
+                </tr>
+                ${data.salonAddress ? `
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #e5e5ea;">
+                    <p style="margin:0;font-size:12px;color:#86868b;text-transform:uppercase;letter-spacing:0.5px;">Locatie</p>
+                    <p style="margin:4px 0 0 0;font-size:16px;color:#1d1d1f;font-weight:600;">${data.salonName}</p>
+                    <p style="margin:2px 0 0 0;font-size:15px;color:#515154;">${data.salonAddress}${data.salonCity ? ', ' + data.salonCity : ''}</p>
+                  </td>
+                </tr>
+                ` : ''}
+                <tr>
+                  <td style="padding:12px 0;">
+                    <p style="margin:0;font-size:12px;color:#86868b;text-transform:uppercase;letter-spacing:0.5px;">Prijs</p>
+                    <p style="margin:4px 0 0 0;font-size:18px;color:#1d1d1f;font-weight:700;">${formatPrice(data.price, data.currency)}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  `;
+}
+
+function actionButtonsHtml(manageUrl: string): string {
+  return `
+    <tr>
+      <td style="padding:0 32px 32px 32px;">
+        <p style="margin:0 0 16px 0;font-size:14px;color:#86868b;text-align:center;">
+          Niet meer kunnen komen of een andere tijd nodig?
+        </p>
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+          <tr>
+            <td align="center">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-right:8px;">
+                    <a href="${manageUrl}" style="display:inline-block;padding:14px 28px;background-color:#1a1a2e;color:#ffffff;text-decoration:none;border-radius:10px;font-size:15px;font-weight:600;">
+                      Afspraak wijzigen
+                    </a>
+                  </td>
+                  <td style="padding-left:8px;">
+                    <a href="${manageUrl}#cancel" style="display:inline-block;padding:14px 28px;background-color:#ffffff;color:#1a1a2e;text-decoration:none;border-radius:10px;font-size:15px;font-weight:600;border:1.5px solid #d2d2d7;">
+                      Annuleren
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  `;
+}
+
+function contactInfoHtml(data: BookingEmailData): string {
+  if (!data.salonPhone && !data.salonEmail) return '';
+  return `
+    <tr>
+      <td style="padding:24px 32px;background-color:#f5f5f7;border-top:1px solid #e5e5ea;">
+        <p style="margin:0 0 8px 0;font-size:13px;color:#86868b;text-transform:uppercase;letter-spacing:0.5px;text-align:center;">
+          Contact ${data.salonName}
+        </p>
+        <p style="margin:0;font-size:14px;color:#515154;text-align:center;">
+          ${data.salonPhone ? `<a href="tel:${data.salonPhone}" style="color:#515154;text-decoration:none;">${data.salonPhone}</a>` : ''}
+          ${data.salonPhone && data.salonEmail ? ' &middot; ' : ''}
+          ${data.salonEmail ? `<a href="mailto:${data.salonEmail}" style="color:#515154;text-decoration:none;">${data.salonEmail}</a>` : ''}
+        </p>
+      </td>
+    </tr>
+  `;
+}
+
+function getManageUrl(bookingId: string): string {
+  const token = generateManageToken(bookingId);
+  const baseUrl = env.WIDGET_URL || env.APP_URL || 'http://localhost:3002';
+  return `${baseUrl}/manage/${token}`;
+}
+
 function bookingDetailsHtml(data: BookingEmailData): string {
   return `
-    <div class="detail"><span class="label">Dienst</span><span class="value">${data.serviceName}</span></div>
-    <div class="detail"><span class="label">Datum</span><span class="value">${formatDate(data.date)}</span></div>
-    <div class="detail"><span class="label">Tijd</span><span class="value">${data.startTime} - ${data.endTime}</span></div>
-    <div class="detail"><span class="label">Medewerker</span><span class="value">${data.employeeName}</span></div>
-    <div class="detail"><span class="label">Prijs</span><span class="value">${formatPrice(data.price, data.currency)}</span></div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:12px;">
+      <tr><td style="padding:6px 0;color:#71717a;">Dienst</td><td style="padding:6px 0;text-align:right;font-weight:600;">${data.serviceName}</td></tr>
+      <tr><td style="padding:6px 0;color:#71717a;">Datum</td><td style="padding:6px 0;text-align:right;font-weight:600;">${formatDate(data.date)}</td></tr>
+      <tr><td style="padding:6px 0;color:#71717a;">Tijd</td><td style="padding:6px 0;text-align:right;font-weight:600;">${data.startTime} - ${data.endTime}</td></tr>
+      <tr><td style="padding:6px 0;color:#71717a;">Medewerker</td><td style="padding:6px 0;text-align:right;font-weight:600;">${data.employeeName}</td></tr>
+      <tr><td style="padding:6px 0;color:#71717a;">Prijs</td><td style="padding:6px 0;text-align:right;font-weight:600;">${formatPrice(data.price, data.currency)}</td></tr>
+    </table>
   `;
 }
 
@@ -131,103 +252,99 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
 }
 
 export async function sendBookingConfirmation(data: BookingEmailData): Promise<void> {
+  const manageUrl = getManageUrl(data.bookingId);
   const template = await getTemplate(data.salonId, 'booking_confirmation');
+  let subject: string;
   if (template) {
     const vars = buildTemplateVars(data);
-    const subject = replaceVariables(template.subject, vars);
-    const body = replaceVariables(template.body, vars);
-    const html = baseTemplate('Afspraak bevestiging', body);
-    await sendEmail(data.customerEmail, subject, html);
-    return;
+    subject = replaceVariables(template.subject, vars);
+  } else {
+    subject = `Bevestiging: ${data.serviceName} op ${formatDate(data.date)}`;
   }
 
   const html = baseTemplate(
-    'Afspraak bevestiging',
-    `<p>Beste ${data.customerName},</p>
-     <p>Je afspraak bij <strong>${data.salonName}</strong> is bevestigd!</p>
-     ${bookingDetailsHtml(data)}
-     <p style="margin-top:24px;color:#71717a;font-size:14px;">
-       Wil je je afspraak wijzigen of annuleren? Neem contact op met ${data.salonName}.
-     </p>`,
+    bookingCardHtml(data, '#10b981', 'Bevestigd!', 'Je afspraak is succesvol ingepland') +
+      actionButtonsHtml(manageUrl) +
+      contactInfoHtml(data),
   );
 
-  await sendEmail(data.customerEmail, `Bevestiging: ${data.serviceName} op ${formatDate(data.date)}`, html);
+  await sendEmail(data.customerEmail, subject, html);
 }
 
 export async function sendBookingNotification(data: BookingEmailData): Promise<void> {
   const html = baseTemplate(
-    'Nieuwe afspraak',
-    `<p>Er is een nieuwe afspraak ingepland.</p>
-     <div class="detail"><span class="label">Klant</span><span class="value">${data.customerName}</span></div>
-     ${bookingDetailsHtml(data)}`,
+    `
+    <tr>
+      <td style="background:linear-gradient(135deg,#6366f1,#1a1a2e);padding:32px;text-align:center;">
+        <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">Nieuwe afspraak</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:32px;">
+        <p style="margin:0 0 16px 0;font-size:15px;color:#1d1d1f;">Er is een nieuwe afspraak ingepland.</p>
+        <p style="margin:0 0 8px 0;font-size:14px;color:#71717a;">Klant</p>
+        <p style="margin:0 0 16px 0;font-size:16px;color:#1d1d1f;font-weight:600;">${data.customerName}</p>
+        ${bookingDetailsHtml(data)}
+      </td>
+    </tr>
+  `,
   );
 
   await sendEmail(data.salonEmail, `Nieuwe afspraak: ${data.customerName} - ${data.serviceName}`, html);
 }
 
 export async function sendBookingReminder(data: BookingEmailData): Promise<void> {
+  const manageUrl = getManageUrl(data.bookingId);
   const template = await getTemplate(data.salonId, 'booking_reminder');
+  let subject: string;
   if (template) {
     const vars = buildTemplateVars(data);
-    const subject = replaceVariables(template.subject, vars);
-    const body = replaceVariables(template.body, vars);
-    const html = baseTemplate('Herinnering afspraak', body);
-    await sendEmail(data.customerEmail, subject, html);
-    return;
+    subject = replaceVariables(template.subject, vars);
+  } else {
+    subject = `Herinnering: ${data.serviceName} op ${formatDate(data.date)}`;
   }
 
   const html = baseTemplate(
-    'Herinnering afspraak',
-    `<p>Beste ${data.customerName},</p>
-     <p>Dit is een herinnering voor je afspraak bij <strong>${data.salonName}</strong> morgen.</p>
-     ${bookingDetailsHtml(data)}
-     <p style="margin-top:24px;color:#71717a;font-size:14px;">
-       Kun je niet komen? Neem zo snel mogelijk contact op met ${data.salonName}.
-     </p>`,
+    bookingCardHtml(data, '#f59e0b', 'Herinnering', 'Je afspraak is bijna') +
+      actionButtonsHtml(manageUrl) +
+      contactInfoHtml(data),
   );
 
-  await sendEmail(data.customerEmail, `Herinnering: ${data.serviceName} op ${formatDate(data.date)}`, html);
+  await sendEmail(data.customerEmail, subject, html);
 }
 
 export async function sendBookingCancellation(data: BookingEmailData): Promise<void> {
   const template = await getTemplate(data.salonId, 'booking_cancellation');
+  let subject: string;
   if (template) {
     const vars = buildTemplateVars(data);
-    const subject = replaceVariables(template.subject, vars);
-    const body = replaceVariables(template.body, vars);
-    const html = baseTemplate('Afspraak geannuleerd', body);
-    await sendEmail(data.customerEmail, subject, html);
-    return;
+    subject = replaceVariables(template.subject, vars);
+  } else {
+    subject = `Geannuleerd: ${data.serviceName} op ${formatDate(data.date)}`;
   }
 
   const html = baseTemplate(
-    'Afspraak geannuleerd',
-    `<p>Beste ${data.customerName},</p>
-     <p>Je afspraak bij <strong>${data.salonName}</strong> is geannuleerd.</p>
-     ${bookingDetailsHtml(data)}
-     <p style="margin-top:24px;">Wil je een nieuwe afspraak maken? Bezoek onze website.</p>`,
+    bookingCardHtml(data, '#6b7280', 'Geannuleerd', 'Je afspraak is geannuleerd') +
+      contactInfoHtml(data),
   );
 
-  await sendEmail(data.customerEmail, `Geannuleerd: ${data.serviceName} op ${formatDate(data.date)}`, html);
+  await sendEmail(data.customerEmail, subject, html);
 }
 
 export async function sendBookingUpdate(data: BookingEmailData): Promise<void> {
   const template = await getTemplate(data.salonId, 'booking_update');
+  let subject: string;
   if (template) {
     const vars = buildTemplateVars(data);
-    const subject = replaceVariables(template.subject, vars);
-    const body = replaceVariables(template.body, vars);
-    const html = baseTemplate('Afspraak gewijzigd', body);
-    await sendEmail(data.customerEmail, subject, html);
-    return;
+    subject = replaceVariables(template.subject, vars);
+  } else {
+    subject = `Gewijzigd: ${data.serviceName} op ${formatDate(data.date)}`;
   }
 
   const html = baseTemplate(
-    'Afspraak gewijzigd',
-    `<p>Beste ${data.customerName},</p>
-     <p>Je afspraak bij <strong>${data.salonName}</strong> is gewijzigd. Hieronder de nieuwe gegevens:</p>
-     ${bookingDetailsHtml(data)}`,
+    bookingCardHtml(data, '#3b82f6', 'Gewijzigd', 'Je afspraak heeft een nieuwe datum/tijd') +
+      contactInfoHtml(data),
   );
 
-  await sendEmail(data.customerEmail, `Gewijzigd: ${data.serviceName} op ${formatDate(data.date)}`, html);
+  await sendEmail(data.customerEmail, subject, html);
 }

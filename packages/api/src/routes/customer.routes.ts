@@ -7,7 +7,7 @@ const router = Router();
 // GET /api/customers
 router.get('/', authenticate, async (req: AuthRequest, res: Response, next) => {
   try {
-    const { search, page = '1', pageSize = '20', includeInactive } = req.query;
+    const { search, page = '1', pageSize = '1000', includeInactive } = req.query;
 
     const pageNum = parseInt(page as string, 10);
     const size = parseInt(pageSize as string, 10);
