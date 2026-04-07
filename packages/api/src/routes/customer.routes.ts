@@ -115,14 +115,17 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response, next) => 
 
     const name = `${firstName || ''} ${lastName || ''}`.trim();
 
+    // Email is required by schema; synthesize placeholder when only phone provided
+    const safeEmail = email || `noemail-${phone || Date.now()}@local.invalid`;
+
     const customer = await prisma.customer.create({
       data: {
         salonId,
         customerNumber,
         firstName,
         lastName,
-        name: name || email,
-        email,
+        name: name || email || phone || 'Klant',
+        email: safeEmail,
         phone,
         dateOfBirth,
         address,

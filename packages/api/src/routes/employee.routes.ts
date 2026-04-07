@@ -101,13 +101,41 @@ router.post('/', authenticate, validate(employeeSchema), async (req: AuthRequest
   try {
     const { password, ...data } = req.body;
     const passwordHash = password ? await bcrypt.hash(password, 12) : undefined;
+    const salonId = req.user!.salonId;
 
     const employee = await prisma.employee.create({
       data: {
         ...data,
-        salonId: req.user!.salonId,
+        salonId,
         passwordHash,
       },
+    });
+
+    // Auto-link to all active services so the new employee appears in the widget
+    const services = await prisma.service.findMany({
+      where: { salonId, isActive: true },
+      select: { id: true },
+    });
+    if (services.length > 0) {
+      await prisma.employeeService.createMany({
+        data: services.map((s: { id: string }) => ({
+          employeeId: employee.id,
+          serviceId: s.id,
+        })),
+      });
+    }
+
+    // Create default working hours (Tue-Sat 09:00-18:00, Sun-Mon off)
+    await prisma.workingHours.createMany({
+      data: [
+        { employeeId: employee.id, dayOfWeek: 0, startTime: '09:00', endTime: '17:00', isWorking: false },
+        { employeeId: employee.id, dayOfWeek: 1, startTime: '09:00', endTime: '17:00', isWorking: false },
+        { employeeId: employee.id, dayOfWeek: 2, startTime: '09:00', endTime: '18:00', isWorking: true },
+        { employeeId: employee.id, dayOfWeek: 3, startTime: '09:00', endTime: '18:00', isWorking: true },
+        { employeeId: employee.id, dayOfWeek: 4, startTime: '09:00', endTime: '20:00', isWorking: true },
+        { employeeId: employee.id, dayOfWeek: 5, startTime: '09:00', endTime: '18:00', isWorking: true },
+        { employeeId: employee.id, dayOfWeek: 6, startTime: '09:00', endTime: '17:00', isWorking: true },
+      ],
     });
 
     res.status(201).json({
