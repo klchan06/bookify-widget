@@ -78,8 +78,15 @@ export function CustomersPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('active');
 
-  const { data: customers, isLoading } = useCustomers(search || undefined);
+  const { data: customers, isLoading } = useCustomers(search || undefined, filter !== 'active');
+  const filteredCustomers = React.useMemo(() => {
+    if (!customers) return [];
+    if (filter === 'inactive') return customers.filter((c) => !c.isActive);
+    if (filter === 'all') return customers;
+    return customers.filter((c) => c.isActive);
+  }, [customers, filter]);
 
   if (selectedId) {
     return <CustomerDetail id={selectedId} onBack={() => setSelectedId(null)} />;
@@ -110,7 +117,7 @@ export function CustomersPage() {
       header: 'Naam',
       sortable: true,
       render: (c: Customer) => (
-        <div className="flex items-center gap-3">
+        <div className={`flex items-center gap-3 ${!c.isActive ? 'opacity-50' : ''}`}>
           <Avatar name={c.name} size="sm" />
           <button
             className="font-medium text-brand-600 hover:text-brand-800 hover:underline text-left"
@@ -118,6 +125,11 @@ export function CustomersPage() {
           >
             {c.name}
           </button>
+          {!c.isActive && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+              Inactief
+            </span>
+          )}
         </div>
       ),
     },
@@ -191,6 +203,31 @@ export function CustomersPage() {
         </div>
       </div>
 
+      {/* Filter tabs */}
+      <div className="flex gap-1 border-b border-gray-200">
+        {(['active', 'inactive', 'all'] as const).map((f) => {
+          const count = f === 'active'
+            ? customers?.filter((c) => c.isActive).length ?? 0
+            : f === 'inactive'
+              ? customers?.filter((c) => !c.isActive).length ?? 0
+              : customers?.length ?? 0;
+          return (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                filter === f
+                  ? 'border-brand-600 text-brand-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {f === 'active' ? 'Actief' : f === 'inactive' ? 'Inactief' : 'Alle'}
+              <span className="ml-1.5 text-xs text-gray-400">({count})</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Search */}
       <div className="relative w-full sm:max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -207,7 +244,7 @@ export function CustomersPage() {
       <div className="card p-0">
         {isLoading ? (
           <LoadingSpinner />
-        ) : !customers?.length ? (
+        ) : !filteredCustomers.length ? (
           <EmptyState
             title="Geen klanten gevonden"
             description={search ? 'Probeer een andere zoekterm.' : 'Klanten worden automatisch aangemaakt bij boekingen.'}
@@ -216,7 +253,7 @@ export function CustomersPage() {
         ) : (
           <Table
             columns={columns}
-            data={customers}
+            data={filteredCustomers}
             keyExtractor={(c) => c.id}
             onRowClick={(c) => setSelectedId(c.id)}
           />
@@ -245,6 +282,7 @@ function CustomerDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const { data: customer, isLoading } = useCustomer(id);
   const { data: bookings, isLoading: bookingsLoading } = useCustomerBookings(id);
   const deleteMutation = useDeleteCustomer();
+  const updateMutation = useUpdateCustomer();
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -288,7 +326,14 @@ function CustomerDetail({ id, onBack }: { id: string; onBack: () => void }) {
           <div className="flex items-start gap-4">
             <Avatar name={customer.name} size="lg" />
             <div>
-              <h1 className="text-xl font-bold text-gray-900">{customer.name}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-gray-900">{customer.name}</h1>
+                {!customer.isActive && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+                    Inactief
+                  </span>
+                )}
+              </div>
               {customer.customerNumber && (
                 <p className="text-xs text-gray-400 mt-0.5">#{customer.customerNumber}</p>
               )}
@@ -359,14 +404,25 @@ function CustomerDetail({ id, onBack }: { id: string; onBack: () => void }) {
             >
               Samenvoegen
             </Button>
-            <Button
-              variant="danger"
-              size="sm"
-              icon={<Trash2 className="w-4 h-4" />}
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              Verwijderen
-            </Button>
+            {customer.isActive ? (
+              <Button
+                variant="danger"
+                size="sm"
+                icon={<Trash2 className="w-4 h-4" />}
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                Verwijderen
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => updateMutation.mutate({ id: customer.id, data: { isActive: true } as Partial<Customer> })}
+                loading={updateMutation.isPending}
+              >
+                Reactiveren
+              </Button>
+            )}
           </div>
         </div>
       </div>

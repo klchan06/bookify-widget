@@ -7,12 +7,15 @@ const router = Router();
 // GET /api/customers
 router.get('/', authenticate, async (req: AuthRequest, res: Response, next) => {
   try {
-    const { search, page = '1', pageSize = '20' } = req.query;
+    const { search, page = '1', pageSize = '20', includeInactive } = req.query;
 
     const pageNum = parseInt(page as string, 10);
     const size = parseInt(pageSize as string, 10);
 
     const where: Record<string, unknown> = { salonId: req.user!.salonId };
+    if (includeInactive !== 'true') {
+      where.isActive = true;
+    }
     if (search) {
       where.OR = [
         { name: { contains: search as string, mode: 'insensitive' } },
@@ -338,7 +341,7 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response, next) =
       return;
     }
 
-    const { firstName, lastName, name, email, phone, dateOfBirth, address, city, postalCode, gender, notes, tags } = req.body;
+    const { firstName, lastName, name, email, phone, dateOfBirth, address, city, postalCode, gender, notes, tags, isActive } = req.body;
 
     const updatedName = name || (firstName && lastName ? `${firstName} ${lastName}` : customer.name);
 
@@ -357,6 +360,7 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response, next) =
         ...(gender !== undefined && { gender }),
         ...(notes !== undefined && { notes }),
         ...(tags !== undefined && { tags }),
+        ...(isActive !== undefined && { isActive }),
       },
     });
 

@@ -2,8 +2,10 @@ import type { Customer, Booking } from '@bookify/shared';
 import apiClient from './client';
 
 export const customersApi = {
-  list: async (search?: string): Promise<Customer[]> => {
-    const res = await apiClient.get('/customers', { params: { search } });
+  list: async (search?: string, includeInactive?: boolean): Promise<Customer[]> => {
+    const res = await apiClient.get('/customers', {
+      params: { search, ...(includeInactive ? { includeInactive: 'true' } : {}) },
+    });
     return res.data.data;
   },
 

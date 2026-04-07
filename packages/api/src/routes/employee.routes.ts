@@ -51,11 +51,12 @@ router.get('/', optionalAuth, async (req, res: Response, next) => {
     }
 
     const serviceId = req.query.serviceId as string | undefined;
+    const includeInactive = req.query.includeInactive === 'true';
 
     const employees = await prisma.employee.findMany({
       where: {
         salonId,
-        isActive: true,
+        ...(includeInactive ? {} : { isActive: true }),
         ...(serviceId ? { employeeServices: { some: { serviceId } } } : {}),
       },
       select: {

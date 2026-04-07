@@ -26,8 +26,14 @@ router.get('/', optionalAuth, async (req, res: Response, next) => {
       return;
     }
 
+    const includeInactive = req.query.includeInactive === 'true';
+    const where: { salonId: string; isActive?: boolean } = { salonId };
+    if (!includeInactive) {
+      where.isActive = true;
+    }
+
     const services = await prisma.service.findMany({
-      where: { salonId, isActive: true },
+      where,
       include: {
         employeeServices: {
           include: { employee: { select: { id: true, name: true, avatarUrl: true, isActive: true } } },

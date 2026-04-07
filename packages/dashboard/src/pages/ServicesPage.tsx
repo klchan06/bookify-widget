@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Plus, Pencil, Trash2, GripVertical, Power } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { Input } from '../components/Input';
@@ -49,6 +49,24 @@ export function ServicesPage() {
   const [form, setForm] = useState<ServiceFormData>(defaultForm);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('active');
+
+  const filteredServices = useMemo(() => {
+    if (!services) return [];
+    if (filter === 'active') return services.filter((s) => s.isActive);
+    if (filter === 'inactive') return services.filter((s) => !s.isActive);
+    return services;
+  }, [services, filter]);
+
+  const counts = useMemo(() => ({
+    all: services?.length ?? 0,
+    active: services?.filter((s) => s.isActive).length ?? 0,
+    inactive: services?.filter((s) => !s.isActive).length ?? 0,
+  }), [services]);
+
+  const toggleActive = (s: Service) => {
+    updateService.mutate({ id: s.id, data: { isActive: !s.isActive } });
+  };
 
   const update = (field: keyof ServiceFormData, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -113,27 +131,29 @@ export function ServicesPage() {
   const formatPrice = (cents: number) =>
     new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(cents / 100);
 
+  const dim = (s: Service) => !s.isActive ? 'opacity-50' : '';
+
   const columns = [
-    { key: 'name', header: 'Naam', sortable: true },
+    { key: 'name', header: 'Naam', sortable: true, render: (s: Service) => <span className={dim(s)}>{s.name}</span> },
     {
       key: 'duration',
       header: 'Duur',
       sortable: true,
-      render: (s: Service) => `${s.duration} min`,
+      render: (s: Service) => <span className={dim(s)}>{s.duration} min</span>,
     },
     {
       key: 'price',
       header: 'Prijs',
       sortable: true,
-      render: (s: Service) => formatPrice(s.price),
+      render: (s: Service) => <span className={dim(s)}>{formatPrice(s.price)}</span>,
     },
-    { key: 'category', header: 'Categorie', sortable: true, render: (s: Service) => <span className="hidden sm:inline">{s.category || '-'}</span> },
+    { key: 'category', header: 'Categorie', sortable: true, render: (s: Service) => <span className={`hidden sm:inline ${dim(s)}`}>{s.category || '-'}</span> },
     {
       key: 'isActive',
       header: 'Status',
       render: (s: Service) => (
         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-          s.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+          s.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
         }`}>
           {s.isActive ? 'Actief' : 'Inactief'}
         </span>
@@ -144,6 +164,15 @@ export function ServicesPage() {
       header: '',
       render: (s: Service) => (
         <div className="flex gap-1 justify-end">
+          <button
+            onClick={(e) => { e.stopPropagation(); toggleActive(s); }}
+            title={s.isActive ? 'Deactiveren' : 'Activeren'}
+            className={`p-2 rounded min-w-[44px] min-h-[44px] flex items-center justify-center ${
+              s.isActive ? 'text-gray-400 hover:text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+            }`}
+          >
+            <Power className="w-4 h-4" />
+          </button>
           <button
             onClick={(e) => { e.stopPropagation(); openEdit(s); }}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -160,6 +189,25 @@ export function ServicesPage() {
       ),
     },
   ];
+
+  const FilterTabs = () => (
+    <div className="flex gap-1 border-b border-gray-200">
+      {(['active', 'inactive', 'all'] as const).map((f) => (
+        <button
+          key={f}
+          onClick={() => setFilter(f)}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            filter === f
+              ? 'border-brand-600 text-brand-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          {f === 'active' ? 'Actief' : f === 'inactive' ? 'Inactief' : 'Alle'}
+          <span className="ml-1.5 text-xs text-gray-400">({counts[f]})</span>
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -187,11 +235,22 @@ export function ServicesPage() {
             }
           />
         ) : (
-          <Table
-            columns={columns}
-            data={services}
-            keyExtractor={(s) => s.id}
-          />
+          <>
+            <div className="px-4 pt-3">
+              <FilterTabs />
+            </div>
+            {filteredServices.length === 0 ? (
+              <div className="text-center py-12 text-gray-500 text-sm">
+                Geen {filter === 'active' ? 'actieve' : filter === 'inactive' ? 'inactieve' : ''} diensten.
+              </div>
+            ) : (
+              <Table
+                columns={columns}
+                data={filteredServices}
+                keyExtractor={(s) => s.id}
+              />
+            )}
+          </>
         )}
       </div>
 

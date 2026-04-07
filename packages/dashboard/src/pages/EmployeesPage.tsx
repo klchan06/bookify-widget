@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Pencil, Trash2, Clock, Calendar } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Plus, Pencil, Trash2, Clock, Calendar, Power } from 'lucide-react';
 import { DAYS_OF_WEEK } from '@bookify/shared';
 import type { Employee, EmployeeRole, WorkingHours } from '@bookify/shared';
 import { Button } from '../components/Button';
@@ -67,6 +67,24 @@ export function EmployeesPage() {
   const [form, setForm] = useState<EmployeeFormData>(defaultForm);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('active');
+
+  const filteredEmployees = useMemo(() => {
+    if (!employees) return [];
+    if (filter === 'active') return employees.filter((e) => e.isActive);
+    if (filter === 'inactive') return employees.filter((e) => !e.isActive);
+    return employees;
+  }, [employees, filter]);
+
+  const counts = useMemo(() => ({
+    all: employees?.length ?? 0,
+    active: employees?.filter((e) => e.isActive).length ?? 0,
+    inactive: employees?.filter((e) => !e.isActive).length ?? 0,
+  }), [employees]);
+
+  const toggleActive = (emp: Employee) => {
+    updateEmployee.mutate({ id: emp.id, data: { isActive: !emp.isActive } as Partial<Employee> });
+  };
 
   const update = (field: keyof EmployeeFormData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -171,43 +189,84 @@ export function EmployeesPage() {
           />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {employees.map((emp) => (
-            <div key={emp.id} className="card flex flex-col">
-              <div className="flex items-start gap-3 mb-4">
-                <Avatar name={emp.name} imageUrl={emp.avatarUrl} size="lg" />
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-semibold text-gray-900 truncate">{emp.name}</h3>
-                  <p className="text-sm text-gray-500 truncate">{emp.email}</p>
-                  {emp.phone && <p className="text-sm text-gray-500">{emp.phone}</p>}
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${
-                    emp.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {ROLE_LABELS[emp.role]}
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
-                <Button size="sm" variant="ghost" icon={<Clock className="w-4 h-4" />} onClick={() => openHours(emp)}>
-                  Werkuren
-                </Button>
-                <Button size="sm" variant="ghost" icon={<Calendar className="w-4 h-4" />} onClick={() => openSpecialDays(emp)}>
-                  Vrije dagen
-                </Button>
-                <Button size="sm" variant="ghost" icon={<Pencil className="w-4 h-4" />} onClick={() => openEdit(emp)}>
-                  Bewerk
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  icon={<Trash2 className="w-4 h-4" />}
-                  onClick={() => setDeleteId(emp.id)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                />
-              </div>
+        <>
+          <div className="flex gap-1 border-b border-gray-200">
+            {(['active', 'inactive', 'all'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                  filter === f
+                    ? 'border-brand-600 text-brand-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {f === 'active' ? 'Actief' : f === 'inactive' ? 'Inactief' : 'Alle'}
+                <span className="ml-1.5 text-xs text-gray-400">({counts[f]})</span>
+              </button>
+            ))}
+          </div>
+          {filteredEmployees.length === 0 ? (
+            <div className="card">
+              <p className="text-center py-8 text-gray-500 text-sm">
+                Geen {filter === 'active' ? 'actieve' : filter === 'inactive' ? 'inactieve' : ''} medewerkers.
+              </p>
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredEmployees.map((emp) => (
+                <div key={emp.id} className={`card flex flex-col ${!emp.isActive ? 'bg-gray-50 opacity-75' : ''}`}>
+                  <div className="flex items-start gap-3 mb-4">
+                    <Avatar name={emp.name} imageUrl={emp.avatarUrl} size="lg" />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-semibold text-gray-900 truncate">{emp.name}</h3>
+                      <p className="text-sm text-gray-500 truncate">{emp.email}</p>
+                      {emp.phone && <p className="text-sm text-gray-500">{emp.phone}</p>}
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {ROLE_LABELS[emp.role]}
+                        </span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          emp.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
+                        }`}>
+                          {emp.isActive ? 'Actief' : 'Inactief'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-auto pt-3 border-t border-gray-100">
+                    <Button size="sm" variant="ghost" icon={<Clock className="w-4 h-4" />} onClick={() => openHours(emp)}>
+                      Werkuren
+                    </Button>
+                    <Button size="sm" variant="ghost" icon={<Calendar className="w-4 h-4" />} onClick={() => openSpecialDays(emp)}>
+                      Vrije dagen
+                    </Button>
+                    <Button size="sm" variant="ghost" icon={<Pencil className="w-4 h-4" />} onClick={() => openEdit(emp)}>
+                      Bewerk
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon={<Power className="w-4 h-4" />}
+                      onClick={() => toggleActive(emp)}
+                      className={emp.isActive ? 'text-orange-500 hover:text-orange-700 hover:bg-orange-50' : 'text-green-600 hover:text-green-700 hover:bg-green-50'}
+                      title={emp.isActive ? 'Deactiveren' : 'Activeren'}
+                    />
+                    {emp.isActive && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        icon={<Trash2 className="w-4 h-4" />}
+                        onClick={() => setDeleteId(emp.id)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Create/Edit modal */}

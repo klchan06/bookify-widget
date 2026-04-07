@@ -3,7 +3,7 @@ import apiClient from './client';
 
 export const employeesApi = {
   list: async (): Promise<Employee[]> => {
-    const res = await apiClient.get('/employees');
+    const res = await apiClient.get('/employees', { params: { includeInactive: 'true' } });
     return res.data.data;
   },
 

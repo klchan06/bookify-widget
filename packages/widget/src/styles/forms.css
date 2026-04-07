@@ -1,20 +1,24 @@
-/* Form styles */
+/* ============ Form styles ============ */
 .bk-form {
   display: flex;
   flex-direction: column;
-  gap: var(--bk-space-4);
+  gap: var(--bk-space-5);
+  animation: bk-fade-up 400ms var(--bk-ease-out);
 }
 
 .bk-field {
   display: flex;
   flex-direction: column;
-  gap: var(--bk-space-1);
+  gap: var(--bk-space-2);
 }
 
 .bk-field__label {
-  font-size: var(--bk-font-size-sm);
-  font-weight: 500;
-  color: var(--bk-text);
+  font-size: var(--bk-font-size-xs);
+  font-weight: 700;
+  color: var(--bk-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: var(--bk-tracking-wide);
+  padding-left: var(--bk-space-1);
 }
 
 .bk-field__label--required::after {
@@ -23,17 +27,19 @@
 }
 
 .bk-field__input {
-  padding: var(--bk-space-3) var(--bk-space-4);
-  border: 1px solid var(--bk-border);
+  padding: var(--bk-space-4) var(--bk-space-5);
+  border: 1.5px solid var(--bk-border);
   border-radius: var(--bk-radius);
   font-family: var(--bk-font-family);
-  font-size: 16px;
+  font-size: 16px; /* prevent iOS zoom */
+  font-weight: 500;
+  letter-spacing: var(--bk-tracking-tight);
   color: var(--bk-text);
-  background: var(--bk-bg);
-  transition: border-color var(--bk-transition), box-shadow var(--bk-transition);
+  background: var(--bk-bg-secondary);
+  transition: all var(--bk-transition-fast);
   outline: none;
   width: 100%;
-  min-height: 44px;
+  min-height: 52px;
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
@@ -41,27 +47,47 @@
 
 .bk-field__input::placeholder {
   color: var(--bk-text-muted);
+  font-weight: 400;
+}
+
+.bk-field__input:hover {
+  border-color: var(--bk-border-strong);
 }
 
 .bk-field__input:focus {
-  border-color: var(--bk-border-focus);
-  box-shadow: 0 0 0 3px var(--bk-primary-light);
+  border-color: var(--bk-primary);
+  background: var(--bk-bg);
+  box-shadow: 0 0 0 4px var(--bk-primary-soft);
 }
 
 .bk-field__input--error {
   border-color: var(--bk-error);
+  background: var(--bk-bg);
 }
 
 .bk-field__input--error:focus {
-  box-shadow: 0 0 0 3px var(--bk-error-light);
+  box-shadow: 0 0 0 4px var(--bk-error-light);
 }
 
 .bk-field__error {
   font-size: var(--bk-font-size-xs);
   color: var(--bk-error);
+  font-weight: 500;
+  padding-left: var(--bk-space-1);
+  display: flex;
+  align-items: center;
+  gap: var(--bk-space-1);
+}
+
+.bk-field__help {
+  font-size: var(--bk-font-size-xs);
+  color: var(--bk-text-muted);
+  padding-left: var(--bk-space-1);
 }
 
 textarea.bk-field__input {
   resize: vertical;
-  min-height: 80px;
+  min-height: 96px;
+  padding-top: var(--bk-space-4);
+  line-height: var(--bk-leading-normal);
 }

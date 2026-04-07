@@ -1,6 +1,11 @@
-/* Calendar */
+/* ============ Calendar ============ */
 .bk-calendar {
-  margin-bottom: var(--bk-space-4);
+  margin-bottom: var(--bk-space-5);
+  background: var(--bk-bg);
+  border: 1px solid var(--bk-border);
+  border-radius: var(--bk-radius-lg);
+  padding: var(--bk-space-5) var(--bk-space-4);
+  animation: bk-fade-up 400ms var(--bk-ease-out);
 }
 
 .bk-calendar__header {
@@ -8,32 +13,44 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--bk-space-4);
+  padding: 0 var(--bk-space-1);
 }
 
 .bk-calendar__month {
-  font-weight: 600;
-  font-size: var(--bk-font-size-base);
+  font-weight: 700;
+  font-size: var(--bk-font-size-md);
+  letter-spacing: var(--bk-tracking-tight);
+  color: var(--bk-text);
+  text-transform: capitalize;
 }
 
 .bk-calendar__nav {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-  width: 44px;
-  height: 44px;
+  min-width: 40px;
+  min-height: 40px;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--bk-border);
-  border-radius: var(--bk-radius);
+  border-radius: var(--bk-radius-full);
   background: var(--bk-bg);
   cursor: pointer;
-  transition: all var(--bk-transition);
+  transition: all var(--bk-transition-fast);
   color: var(--bk-text);
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.bk-calendar__nav:hover {
-  background: var(--bk-bg-hover);
+@media (hover: hover) {
+  .bk-calendar__nav:hover:not(:disabled) {
+    background: var(--bk-bg-tertiary);
+    border-color: var(--bk-border-strong);
+  }
+}
+
+.bk-calendar__nav:active:not(:disabled) {
+  transform: scale(0.92);
 }
 
 .bk-calendar__nav:disabled {
@@ -44,28 +61,30 @@
 .bk-calendar__nav svg {
   width: 14px;
   height: 14px;
+  stroke-width: 2.5;
 }
 
 .bk-calendar__weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  gap: 4px;
   margin-bottom: var(--bk-space-2);
 }
 
 .bk-calendar__weekday {
   text-align: center;
-  font-size: var(--bk-font-size-xs);
-  font-weight: 600;
-  color: var(--bk-text-secondary);
-  padding: var(--bk-space-1);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--bk-text-muted);
+  padding: var(--bk-space-2) 0;
   text-transform: uppercase;
+  letter-spacing: var(--bk-tracking-wider);
 }
 
 .bk-calendar__days {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  gap: 4px;
 }
 
 .bk-calendar__day {
@@ -77,16 +96,26 @@
   background: none;
   font-family: var(--bk-font-family);
   font-size: var(--bk-font-size-sm);
+  font-weight: 500;
   cursor: pointer;
-  border-radius: var(--bk-radius);
-  transition: all var(--bk-transition);
+  border-radius: var(--bk-radius-full);
+  transition: all var(--bk-transition-fast);
   color: var(--bk-text);
-  min-height: 44px;
+  min-height: 40px;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
 }
 
-.bk-calendar__day:hover:not(:disabled):not(.bk-calendar__day--empty) {
-  background: var(--bk-primary-light);
+@media (hover: hover) {
+  .bk-calendar__day:hover:not(:disabled):not(.bk-calendar__day--empty):not(.bk-calendar__day--selected) {
+    background: var(--bk-bg-tertiary);
+    transform: scale(1.05);
+  }
+}
+
+.bk-calendar__day:active:not(:disabled):not(.bk-calendar__day--empty) {
+  transform: scale(0.92);
 }
 
 .bk-calendar__day--today {
@@ -94,16 +123,36 @@
   color: var(--bk-primary);
 }
 
+.bk-calendar__day--today::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: var(--bk-radius-full);
+  background: var(--bk-primary);
+}
+
 .bk-calendar__day--selected {
   background: var(--bk-primary) !important;
   color: var(--bk-text-inverse) !important;
-  font-weight: 600;
+  font-weight: 700;
+  box-shadow: var(--bk-shadow-primary);
+  transform: scale(1.05);
+}
+
+.bk-calendar__day--selected::after {
+  background: var(--bk-text-inverse) !important;
 }
 
 .bk-calendar__day--disabled {
   color: var(--bk-text-muted);
   cursor: not-allowed;
-  opacity: 0.4;
+  opacity: 0.35;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
 }
 
 .bk-calendar__day--empty {

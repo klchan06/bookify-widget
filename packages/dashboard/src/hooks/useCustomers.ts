@@ -3,10 +3,10 @@ import toast from 'react-hot-toast';
 import { customersApi } from '../api/customers';
 import type { Customer } from '@bookify/shared';
 
-export function useCustomers(search?: string) {
+export function useCustomers(search?: string, includeInactive?: boolean) {
   return useQuery({
-    queryKey: ['customers', search],
-    queryFn: () => customersApi.list(search),
+    queryKey: ['customers', search, includeInactive],
+    queryFn: () => customersApi.list(search, includeInactive),
   });
 }
 
