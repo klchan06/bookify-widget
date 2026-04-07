@@ -6,7 +6,7 @@ services:
     plan: free
     rootDir: .
     buildCommand: |
-      npm ci
+      npm ci --include=dev
       npx -w packages/api prisma generate
       npm run build -w @bookify/shared
       npm run build -w @bookify/api
