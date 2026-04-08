@@ -701,7 +701,12 @@ function NotificationsTab() {
 
 function IntegrationsTab() {
   const [connecting, setConnecting] = useState(false);
-  const [feedUrls, setFeedUrls] = useState<{ personalFeed: string; salonFeed: string } | null>(null);
+  const [feedUrls, setFeedUrls] = useState<{
+    personalFeed: string;
+    salonFeed: string;
+    personalFeedWebcal?: string;
+    salonFeedWebcal?: string;
+  } | null>(null);
   const [feedLoading, setFeedLoading] = useState(false);
 
   const handleConnectGoogle = async () => {
@@ -751,6 +756,14 @@ function IntegrationsTab() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Jouw persoonlijke agenda
                 </label>
+                {feedUrls.personalFeedWebcal && (
+                  <a
+                    href={feedUrls.personalFeedWebcal}
+                    className="inline-block mb-2 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors"
+                  >
+                    Toevoegen aan iPhone agenda
+                  </a>
+                )}
                 <div className="flex gap-2">
                   <input
                     readOnly
@@ -772,6 +785,14 @@ function IntegrationsTab() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Hele salon agenda
                 </label>
+                {feedUrls.salonFeedWebcal && (
+                  <a
+                    href={feedUrls.salonFeedWebcal}
+                    className="inline-block mb-2 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors"
+                  >
+                    Toevoegen aan iPhone agenda
+                  </a>
+                )}
                 <div className="flex gap-2">
                   <input
                     readOnly
@@ -793,7 +814,8 @@ function IntegrationsTab() {
             <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
               <p className="font-medium mb-2">Hoe te gebruiken:</p>
               <ul className="list-disc pl-5 space-y-1">
-                <li><strong>iPhone:</strong> Instellingen &rarr; Agenda &rarr; Accounts &rarr; Voeg account toe &rarr; Anders &rarr; Voeg agenda-abonnement toe &rarr; Plak de URL</li>
+                <li><strong>iPhone (makkelijkste):</strong> Open dit dashboard op je iPhone en klik op de paarse <em>&quot;Toevoegen aan iPhone agenda&quot;</em> knop</li>
+                <li><strong>Handmatig op iPhone:</strong> Instellingen &rarr; Agenda &rarr; Accounts &rarr; Voeg account toe &rarr; Anders &rarr; Voeg agenda-abonnement toe &rarr; Plak de URL (zorg dat &quot;SSL gebruiken&quot; AAN staat)</li>
                 <li><strong>Outlook:</strong> Agenda &rarr; Agenda toevoegen &rarr; Van internet &rarr; Plak de URL</li>
                 <li><strong>Google Agenda:</strong> Andere agenda&apos;s &rarr; Op URL &rarr; Plak de URL</li>
               </ul>

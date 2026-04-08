@@ -182,15 +182,17 @@ router.get('/feed-url', authenticate, async (req: AuthRequest, res: Response, ne
     const host = req.get('host');
     const proto = env.NODE_ENV === 'production' ? 'https' : (req.get('x-forwarded-proto') || req.protocol);
     const baseUrl = host ? `${proto}://${host}` : env.APP_URL;
-    // For iOS Calendar subscription, the webcal:// scheme triggers add-to-calendar prompt
+    // webcal:// scheme makes iOS Calendar treat the URL as a subscription
     const webcalBase = baseUrl.replace(/^https?:\/\//, 'webcal://');
-    void webcalBase;
 
     res.json({
       success: true,
       data: {
         personalFeed: `${baseUrl}/api/calendar/feed/${personalToken}.ics`,
         salonFeed: `${baseUrl}/api/calendar/feed/${salonToken}.ics`,
+        // webcal:// URLs - tap on iPhone opens Calendar app and subscribes
+        personalFeedWebcal: `${webcalBase}/api/calendar/feed/${personalToken}.ics`,
+        salonFeedWebcal: `${webcalBase}/api/calendar/feed/${salonToken}.ics`,
       },
     });
   } catch (err) {

@@ -15,7 +15,12 @@ export const calendarApi = {
     await apiClient.post('/calendar/google/sync');
   },
 
-  getFeedUrls: async (): Promise<{ personalFeed: string; salonFeed: string }> => {
+  getFeedUrls: async (): Promise<{
+    personalFeed: string;
+    salonFeed: string;
+    personalFeedWebcal?: string;
+    salonFeedWebcal?: string;
+  }> => {
     const res = await apiClient.get('/calendar/feed-url');
     return res.data.data;
   },

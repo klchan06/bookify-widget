@@ -39,8 +39,17 @@ import salonRoutes from './routes/salon.routes.js';
 
 const app = express();
 
-// Global middleware
-app.use(helmet());
+// Trust proxy (Render uses x-forwarded-proto for HTTPS)
+app.set('trust proxy', 1);
+
+// Global middleware - helmet with relaxed CSP so iCal feed works in Apple Calendar
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginOpenerPolicy: false,
+  }),
+);
 
 // CORS: allow dev locally, * wildcard, vercel.app subdomains, and specific origins
 app.use(cors({
