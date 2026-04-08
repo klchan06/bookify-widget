@@ -36,6 +36,9 @@ function generateICal(salon: any, bookings: any[]): string {
     `X-WR-CALNAME:${icalEscape(salon.name)} - Afspraken`,
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
+    // Tell calendar clients to refresh every 15 minutes (Apple Calendar respects these)
+    'X-PUBLISHED-TTL:PT15M',
+    'REFRESH-INTERVAL;VALUE=DURATION:PT15M',
     // Embed VTIMEZONE for Europe/Amsterdam so iOS handles DST correctly
     'BEGIN:VTIMEZONE',
     'TZID:Europe/Amsterdam',
@@ -155,6 +158,10 @@ router.get('/feed/:token.ics', async (req: Request, res: Response, next) => {
 
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
     res.setHeader('Content-Disposition', 'inline; filename="boekgerust-calendar.ics"');
+    // Tell calendar clients to refresh frequently (Apple respects this)
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.send(ical);
   } catch (err) {
     next(err);
@@ -171,7 +178,13 @@ router.get('/feed-url', authenticate, async (req: AuthRequest, res: Response, ne
     const personalToken = Buffer.from(`${salonId}:${employeeId}`).toString('base64url');
     const salonToken = Buffer.from(`${salonId}:all`).toString('base64url');
 
-    const baseUrl = req.get('host') ? `${req.protocol}://${req.get('host')}` : env.APP_URL;
+    // Force HTTPS in production (Render uses x-forwarded-proto behind their proxy)
+    const host = req.get('host');
+    const proto = env.NODE_ENV === 'production' ? 'https' : (req.get('x-forwarded-proto') || req.protocol);
+    const baseUrl = host ? `${proto}://${host}` : env.APP_URL;
+    // For iOS Calendar subscription, the webcal:// scheme triggers add-to-calendar prompt
+    const webcalBase = baseUrl.replace(/^https?:\/\//, 'webcal://');
+    void webcalBase;
 
     res.json({
       success: true,
