@@ -13,32 +13,86 @@ const router = Router();
 
 // ===== iCal Feed =====
 
+// Escape special characters per RFC 5545
+function icalEscape(text: string): string {
+  return String(text || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '');
+}
+
+function formatICalDate(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}T${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}Z`;
+}
+
 function generateICal(salon: any, bookings: any[]): string {
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Boekgerust//Boekgerust Widget//NL',
-    `X-WR-CALNAME:${salon.name} - Afspraken`,
+    'PRODID:-//Boekgerust//NL',
+    `X-WR-CALNAME:${icalEscape(salon.name)} - Afspraken`,
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
+    // Embed VTIMEZONE for Europe/Amsterdam so iOS handles DST correctly
+    'BEGIN:VTIMEZONE',
+    'TZID:Europe/Amsterdam',
+    'BEGIN:STANDARD',
+    'DTSTART:19701025T030000',
+    'TZOFFSETFROM:+0200',
+    'TZOFFSETTO:+0100',
+    'TZNAME:CET',
+    'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
+    'END:STANDARD',
+    'BEGIN:DAYLIGHT',
+    'DTSTART:19700329T020000',
+    'TZOFFSETFROM:+0100',
+    'TZOFFSETTO:+0200',
+    'TZNAME:CEST',
+    'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+    'END:DAYLIGHT',
+    'END:VTIMEZONE',
   ];
+
+  const now = formatICalDate(new Date());
 
   for (const booking of bookings) {
     const dtStart = `${booking.date.replace(/-/g, '')}T${booking.startTime.replace(':', '')}00`;
     const dtEnd = `${booking.date.replace(/-/g, '')}T${booking.endTime.replace(':', '')}00`;
-    const created = new Date(booking.createdAt).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+
+    const customer = booking.customer?.name || 'Klant';
+    const service = booking.service?.name || 'Afspraak';
+    const employee = booking.employee?.name || '';
+
+    // Include employee in summary so concurrent bookings look distinct in iOS Calendar
+    const summary = employee
+      ? `${customer} - ${service} (${employee})`
+      : `${customer} - ${service}`;
+
+    const description = [
+      `Klant: ${customer}`,
+      `Dienst: ${service}`,
+      `Medewerker: ${employee || '-'}`,
+      `Telefoon: ${booking.customer?.phone || '-'}`,
+      `Email: ${booking.customer?.email || '-'}`,
+      ...(booking.notes ? [`Notities: ${booking.notes}`] : []),
+    ].join('\\n');
 
     lines.push('BEGIN:VEVENT');
-    lines.push(`UID:${booking.id}@boekgerust`);
+    lines.push(`UID:booking-${booking.id}@boekgerust.nl`);
+    lines.push(`DTSTAMP:${now}`);
     lines.push(`DTSTART;TZID=Europe/Amsterdam:${dtStart}`);
     lines.push(`DTEND;TZID=Europe/Amsterdam:${dtEnd}`);
-    lines.push(`DTSTAMP:${created}`);
-    lines.push(`SUMMARY:${booking.customer?.name || 'Klant'} - ${booking.service?.name || 'Afspraak'}`);
-    lines.push(`DESCRIPTION:Klant: ${booking.customer?.name || '-'}\\nDienst: ${booking.service?.name || '-'}\\nMedewerker: ${booking.employee?.name || '-'}\\nTelefoon: ${booking.customer?.phone || '-'}\\nEmail: ${booking.customer?.email || '-'}${booking.notes ? '\\nNotities: ' + booking.notes : ''}`);
+    lines.push(`SUMMARY:${icalEscape(summary)}`);
+    lines.push(`DESCRIPTION:${icalEscape(description)}`);
     if (salon.address) {
-      lines.push(`LOCATION:${salon.address}${salon.city ? ', ' + salon.city : ''}`);
+      lines.push(`LOCATION:${icalEscape(salon.address + (salon.city ? ', ' + salon.city : ''))}`);
     }
-    lines.push(`STATUS:${booking.status === 'confirmed' ? 'CONFIRMED' : 'TENTATIVE'}`);
+    lines.push(`STATUS:${booking.status === 'confirmed' ? 'CONFIRMED' : booking.status === 'cancelled' ? 'CANCELLED' : 'TENTATIVE'}`);
+    lines.push('SEQUENCE:0');
+    lines.push('TRANSP:OPAQUE');
     lines.push('END:VEVENT');
   }
 

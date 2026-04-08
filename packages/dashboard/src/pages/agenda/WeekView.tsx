@@ -24,6 +24,81 @@ function timeToMinutes(time: string): number {
   return h * 60 + m;
 }
 
+// Layout overlapping bookings side-by-side
+// Returns each booking with its column index and total column count
+function layoutBookings(bookings: Booking[]): Array<{ booking: Booking; col: number; cols: number }> {
+  const sorted = [...bookings].sort((a, b) => {
+    const t = timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
+    return t !== 0 ? t : timeToMinutes(a.endTime) - timeToMinutes(b.endTime);
+  });
+
+  // Group bookings into clusters of overlapping events
+  const clusters: Booking[][] = [];
+  for (const b of sorted) {
+    const bStart = timeToMinutes(b.startTime);
+    const bEnd = timeToMinutes(b.endTime);
+    let placed = false;
+    for (const cluster of clusters) {
+      // Check if this booking overlaps with any in the cluster
+      if (cluster.some((c) => {
+        const cStart = timeToMinutes(c.startTime);
+        const cEnd = timeToMinutes(c.endTime);
+        return bStart < cEnd && bEnd > cStart;
+      })) {
+        cluster.push(b);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) clusters.push([b]);
+  }
+
+  // Within each cluster, assign each booking to the first available column
+  const result: Array<{ booking: Booking; col: number; cols: number }> = [];
+  for (const cluster of clusters) {
+    const columns: Booking[][] = [];
+    for (const b of cluster) {
+      const bStart = timeToMinutes(b.startTime);
+      const bEnd = timeToMinutes(b.endTime);
+      let placed = false;
+      for (let i = 0; i < columns.length; i++) {
+        const last = columns[i][columns[i].length - 1];
+        if (timeToMinutes(last.endTime) <= bStart) {
+          columns[i].push(b);
+          result.push({ booking: b, col: i, cols: 0 });
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        columns.push([b]);
+        result.push({ booking: b, col: columns.length - 1, cols: 0 });
+      }
+      // Check if any booking actually overlaps in time, not just shares a column
+      const overlapping = cluster.filter((c) => {
+        const cStart = timeToMinutes(c.startTime);
+        const cEnd = timeToMinutes(c.endTime);
+        return bStart < cEnd && bEnd > cStart;
+      });
+      // We'll fix cols below
+      void overlapping;
+    }
+    // Set the cols for each booking to the max overlap count at its time
+    for (const r of result.filter((r) => cluster.includes(r.booking))) {
+      const rStart = timeToMinutes(r.booking.startTime);
+      const rEnd = timeToMinutes(r.booking.endTime);
+      const overlap = cluster.filter((c) => {
+        const cStart = timeToMinutes(c.startTime);
+        const cEnd = timeToMinutes(c.endTime);
+        return rStart < cEnd && rEnd > cStart;
+      }).length;
+      r.cols = Math.max(columns.length, overlap);
+    }
+  }
+
+  return result;
+}
+
 export function WeekView({ date, bookings, days: dayCount = 7, startFromDate = false, onSlotClick, onBookingClick }: WeekViewProps) {
   const start = startFromDate ? date : startOfWeek(date, { weekStartsOn: 1 });
   const days = Array.from({ length: dayCount }, (_, i) => addDays(start, i));
@@ -97,30 +172,42 @@ export function WeekView({ date, bookings, days: dayCount = 7, startFromDate = f
                 );
               })}
 
-              {dayBookings.map((booking) => {
+              {layoutBookings(dayBookings).map(({ booking, col, cols }) => {
                 const startMinutes = timeToMinutes(booking.startTime) - START_HOUR * 60;
                 const endMinutes = timeToMinutes(booking.endTime) - START_HOUR * 60;
                 const top = (startMinutes / 60) * SLOT_HEIGHT;
                 const height = ((endMinutes - startMinutes) / 60) * SLOT_HEIGHT;
                 const statusColor = BOOKING_STATUSES[booking.status]?.color || '#3b82f6';
 
+                // Side-by-side positioning for overlapping bookings
+                const widthPct = 100 / cols;
+                const leftPct = col * widthPct;
+
                 return (
                   <div
                     key={booking.id}
-                    className="absolute left-0.5 right-0.5 rounded px-1 py-0.5 cursor-pointer text-white text-xs shadow-sm hover:shadow-md transition-shadow z-10 overflow-hidden"
+                    className="absolute rounded px-1 py-0.5 cursor-pointer text-white text-xs shadow-sm hover:shadow-md transition-shadow z-10 overflow-hidden"
                     style={{
                       top: `${top}px`,
                       height: `${Math.max(height, 16)}px`,
+                      left: `calc(${leftPct}% + 1px)`,
+                      width: `calc(${widthPct}% - 2px)`,
                       backgroundColor: statusColor,
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
                       onBookingClick(booking);
                     }}
+                    title={`${booking.startTime} - ${booking.customer?.name || 'Klant'}${booking.employee?.name ? ' (' + booking.employee.name + ')' : ''}`}
                   >
                     <div className="font-medium truncate">
                       {booking.startTime} {booking.customer?.name || ''}
                     </div>
+                    {booking.employee?.name && cols < 4 && (
+                      <div className="truncate opacity-90 text-[10px]">
+                        {booking.employee.name}
+                      </div>
+                    )}
                   </div>
                 );
               })}
