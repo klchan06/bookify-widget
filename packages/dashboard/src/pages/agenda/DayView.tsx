@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import type { Booking, Employee } from '@bookify/shared';
 import { BOOKING_STATUSES } from '@bookify/shared';
+import { getEmployeeColor } from '../../utils/employeeColor';
 
 interface DayViewProps {
   date: Date;
@@ -89,6 +90,7 @@ export function DayView({ date, bookings, employees, onSlotClick, onBookingClick
             </div>
           ) : (
             sortedBookings.map((booking) => {
+              const employeeColor = getEmployeeColor(booking.employeeId);
               const statusColor = BOOKING_STATUSES[booking.status]?.color || '#3b82f6';
               return (
                 <button
@@ -97,8 +99,8 @@ export function DayView({ date, bookings, employees, onSlotClick, onBookingClick
                   onClick={() => onBookingClick(booking)}
                 >
                   <div
-                    className="w-1 self-stretch rounded-full flex-shrink-0"
-                    style={{ backgroundColor: statusColor }}
+                    className="w-1.5 self-stretch rounded-full flex-shrink-0"
+                    style={{ backgroundColor: employeeColor }}
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -113,7 +115,10 @@ export function DayView({ date, bookings, employees, onSlotClick, onBookingClick
                       </span>
                     </div>
                     <p className="text-sm text-gray-900 truncate">{booking.customer?.name || 'Klant'}</p>
-                    <p className="text-xs text-gray-500 truncate">{booking.service?.name}</p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {booking.service?.name}
+                      {booking.employee?.name && <span> · {booking.employee.name}</span>}
+                    </p>
                   </div>
                 </button>
               );
@@ -211,7 +216,8 @@ export function DayView({ date, bookings, employees, onSlotClick, onBookingClick
                 const top = (startMinutes / 60) * SLOT_HEIGHT;
                 const height = ((endMinutes - startMinutes) / 60) * SLOT_HEIGHT;
 
-                const statusColor = BOOKING_STATUSES[booking.status]?.color || '#3b82f6';
+                const employeeColor = getEmployeeColor(booking.employeeId);
+                const isCancelled = booking.status === 'cancelled';
 
                 return (
                   <div
@@ -220,7 +226,9 @@ export function DayView({ date, bookings, employees, onSlotClick, onBookingClick
                     style={{
                       top: `${top}px`,
                       height: `${Math.max(height, 20)}px`,
-                      backgroundColor: statusColor,
+                      backgroundColor: employeeColor,
+                      opacity: isCancelled ? 0.5 : 1,
+                      textDecoration: isCancelled ? 'line-through' : 'none',
                     }}
                     onClick={(e) => {
                       e.stopPropagation();

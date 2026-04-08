@@ -12,6 +12,7 @@ import { WeekView } from './WeekView';
 import { MonthView } from './MonthView';
 import { BookingDetailModal } from './BookingDetailModal';
 import { NewBookingModal } from './NewBookingModal';
+import { getEmployeeColor } from '../../utils/employeeColor';
 import type { Booking } from '@bookify/shared';
 
 type ViewMode = 'resource' | 'day' | '4days' | 'week' | 'workweek' | 'worksat';
@@ -352,6 +353,21 @@ export function AgendaPage() {
           </div>
         </div>
       </div>
+
+      {/* Employee color legend */}
+      {(employees || []).filter((e) => e.isActive).length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 py-1 text-xs">
+          {(employees || []).filter((e) => e.isActive).map((emp) => (
+            <div key={emp.id} className="flex items-center gap-1.5">
+              <span
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: getEmployeeColor(emp.id) }}
+              />
+              <span className="text-gray-700">{emp.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Layout: mini calendar + main view */}
       <div className="flex gap-4">

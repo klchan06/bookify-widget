@@ -2,7 +2,7 @@ import React from 'react';
 import { format, startOfWeek, addDays, isToday } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import type { Booking } from '@bookify/shared';
-import { BOOKING_STATUSES } from '@bookify/shared';
+import { getEmployeeColor } from '../../utils/employeeColor';
 
 interface WeekViewProps {
   date: Date;
@@ -177,7 +177,8 @@ export function WeekView({ date, bookings, days: dayCount = 7, startFromDate = f
                 const endMinutes = timeToMinutes(booking.endTime) - START_HOUR * 60;
                 const top = (startMinutes / 60) * SLOT_HEIGHT;
                 const height = ((endMinutes - startMinutes) / 60) * SLOT_HEIGHT;
-                const statusColor = BOOKING_STATUSES[booking.status]?.color || '#3b82f6';
+                const employeeColor = getEmployeeColor(booking.employeeId);
+                const isCancelled = booking.status === 'cancelled';
 
                 // Side-by-side positioning for overlapping bookings
                 const widthPct = 100 / cols;
@@ -192,7 +193,9 @@ export function WeekView({ date, bookings, days: dayCount = 7, startFromDate = f
                       height: `${Math.max(height, 16)}px`,
                       left: `calc(${leftPct}% + 1px)`,
                       width: `calc(${widthPct}% - 2px)`,
-                      backgroundColor: statusColor,
+                      backgroundColor: employeeColor,
+                      opacity: isCancelled ? 0.5 : 1,
+                      textDecoration: isCancelled ? 'line-through' : 'none',
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
