@@ -72,17 +72,23 @@ export function startReminderCron(): void {
 
   console.log('[Reminder] Cron job started - checking every hour');
 
-  // Keep-alive: ping ourselves every 10 minutes to prevent Render free tier
-  // from spinning down after 15 min of inactivity (which causes 30-60s cold starts)
+  // Keep-alive ONLY during business hours (08:00 - 21:00 Europe/Amsterdam)
+  // Render free tier: 750 hours/month limit
+  // 13 hours/day × 31 days = 403 hours/month → safe with room for builds + redeploys
+  // Outside these hours: service spins down (cold start when first request comes in)
+  // This ensures we stay within the free tier even with 31-day months and multiple deploys
   const selfUrl = process.env.APP_URL;
   if (selfUrl && selfUrl.startsWith('http')) {
-    cron.schedule('*/10 * * * *', async () => {
+    // Cron format: minute hour * * * (every 10 min, hours 8-20, every day)
+    // Note: Render servers run in UTC. Europe/Amsterdam is UTC+1 (CET) or UTC+2 (CEST)
+    // We use 7-19 UTC which covers 08:00-21:00 CET (winter) and 09:00-21:00 CEST (summer)
+    cron.schedule('*/10 7-19 * * *', async () => {
       try {
         await fetch(`${selfUrl}/api/health`);
       } catch {
         // Ignore - this is just a keep-alive
       }
     });
-    console.log(`[KeepAlive] Self-ping scheduled every 10 min → ${selfUrl}/api/health`);
+    console.log(`[KeepAlive] Self-ping during business hours (07-19 UTC = 08-21 NL time)`);
   }
 }
