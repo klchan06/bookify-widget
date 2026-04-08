@@ -29,7 +29,14 @@ export function useCreateBooking() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateBookingData) => bookingsApi.create(data),
-    onSuccess: () => {
+    onSuccess: (newBooking) => {
+      // Optimistic update: immediately add to all cached booking queries
+      // so the new booking appears in the agenda without waiting for refetch
+      queryClient.setQueriesData<unknown[]>({ queryKey: ['bookings'] }, (old) => {
+        if (!Array.isArray(old)) return old;
+        return [...old, newBooking];
+      });
+      // Also trigger a background refetch to get the canonical version
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       toast.success('Afspraak aangemaakt');
     },
@@ -42,7 +49,12 @@ export function useUpdateBookingStatus() {
   return useMutation({
     mutationFn: ({ id, status, cancelReason }: { id: string; status: BookingStatus; cancelReason?: string }) =>
       bookingsApi.updateStatus(id, status, cancelReason),
-    onSuccess: () => {
+    onSuccess: (updated, vars) => {
+      // Optimistic update
+      queryClient.setQueriesData<unknown[]>({ queryKey: ['bookings'] }, (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((b: any) => (b.id === vars.id ? { ...b, ...updated } : b));
+      });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       toast.success('Status bijgewerkt');
     },
@@ -55,7 +67,11 @@ export function useUpdateBooking() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
       bookingsApi.update(id, data as never),
-    onSuccess: () => {
+    onSuccess: (updated, vars) => {
+      queryClient.setQueriesData<unknown[]>({ queryKey: ['bookings'] }, (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((b: any) => (b.id === vars.id ? { ...b, ...updated } : b));
+      });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       toast.success('Afspraak bijgewerkt');
     },

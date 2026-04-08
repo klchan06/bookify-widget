@@ -21,9 +21,10 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      staleTime: 10_000,
+      staleTime: 5_000,
       refetchOnWindowFocus: true,
-      refetchInterval: 15_000, // Poll elke 15 seconden voor nieuwe boekingen
+      refetchInterval: 8_000, // Poll elke 8 seconden voor nieuwe boekingen
+      refetchIntervalInBackground: false, // Niet pollen als tab niet actief is
     },
   },
 });

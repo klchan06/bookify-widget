@@ -71,4 +71,18 @@ export function startReminderCron(): void {
   });
 
   console.log('[Reminder] Cron job started - checking every hour');
+
+  // Keep-alive: ping ourselves every 10 minutes to prevent Render free tier
+  // from spinning down after 15 min of inactivity (which causes 30-60s cold starts)
+  const selfUrl = process.env.APP_URL;
+  if (selfUrl && selfUrl.startsWith('http')) {
+    cron.schedule('*/10 * * * *', async () => {
+      try {
+        await fetch(`${selfUrl}/api/health`);
+      } catch {
+        // Ignore - this is just a keep-alive
+      }
+    });
+    console.log(`[KeepAlive] Self-ping scheduled every 10 min → ${selfUrl}/api/health`);
+  }
 }
