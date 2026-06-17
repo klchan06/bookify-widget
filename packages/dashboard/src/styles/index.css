@@ -3,8 +3,29 @@
 @tailwind utilities;
 
 @layer base {
+  html,
   body {
-    @apply font-sans text-gray-900 bg-gray-50 antialiased;
+    /* Vul de viewport, ook achter notch/home-indicator (viewport-fit=cover) */
+    height: 100%;
+    background: #1e293b; /* kleur achter safe areas = sidebar/donker, geen witte randen */
+  }
+
+  body {
+    @apply font-sans text-gray-900 antialiased;
+    /* Voorkom rubber-band/overscroll-bounce in standalone modus */
+    overscroll-behavior-y: none;
+    /* Geen tekstselectie-popups / callouts bij lang indrukken (app-gevoel) */
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Tekst in inputs/labels mag wel selecteerbaar blijven */
+  input,
+  textarea,
+  [contenteditable] {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
   }
 }
 
@@ -67,4 +88,59 @@
   button, a, [role="button"] {
     touch-action: manipulation;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* iOS safe areas (notch + home-indicator)                            */
+/* ------------------------------------------------------------------ */
+
+/* Padding-helpers die rekening houden met de iPhone safe-area-insets */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-x {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* De vaste bovenbalk schuift onder de statusbalk-notch vandaan */
+.app-header-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* De onderste tab bar houdt ruimte vrij voor de home-indicator */
+.app-tabbar-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Alleen tonen wanneer de app als geïnstalleerde PWA draait (standalone) */
+.standalone-only {
+  display: none;
+}
+@media (display-mode: standalone) {
+  .standalone-only {
+    display: revert;
+  }
+  /* In standalone iets compactere body-achtergrond zodat overscroll niet wit flitst */
+  body {
+    background: #f9fafb;
+  }
+}
+
+/* Animatie voor de install-/update-banners */
+@keyframes slide-up {
+  from {
+    transform: translateY(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.animate-slide-up {
+  animation: slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }

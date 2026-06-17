@@ -1,0 +1,19 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <!-- Full-bleed background (maskable safe) -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- Calendar body -->
+  <rect x="116" y="140" width="280" height="252" rx="40" fill="#ffffff"/>
+  <!-- Header band -->
+  <path d="M116 180c0-22.091 17.909-40 40-40h200c22.091 0 40 17.909 40 40v34H116v-34z" fill="#1e293b"/>
+  <!-- Hangers -->
+  <rect x="176" y="112" width="22" height="58" rx="11" fill="#1e293b"/>
+  <rect x="314" y="112" width="22" height="58" rx="11" fill="#1e293b"/>
+  <!-- Checkmark -->
+  <path d="M196 300l44 44 84-92" stroke="#2563eb" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

@@ -2,8 +2,30 @@
 <html lang="nl">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon-source.svg" />
+
+    <!-- Viewport: viewport-fit=cover laat de app onder de notch/home-indicator lopen,
+         zodat we zelf safe-area padding kunnen sturen. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
+    />
+
+    <!-- Thema-kleur (statusbalk Android / PWA-chrome) -->
+    <meta name="theme-color" content="#2563eb" />
+
+    <!-- iOS: voeg toe aan beginscherm = volledig-scherm webapp zonder Safari-balk -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- 'black-translucent' laat content onder de statusbalk lopen (echte app-look) -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Boekgerust" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Apple touch icon (beginscherm-icoon op iPhone/iPad) -->
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <title>Boekgerust - Dashboard</title>
   </head>

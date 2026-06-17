@@ -36,7 +36,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
 
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-sidebar-bg z-50 transform transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto ${
+        className={`fixed top-0 left-0 h-full w-64 bg-sidebar-bg z-50 transform transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto safe-top ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

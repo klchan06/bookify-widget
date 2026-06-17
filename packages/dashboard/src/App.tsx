@@ -7,6 +7,7 @@ import { useAuthStore } from './store/authStore';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoadingScreen } from './components/LoadingScreen';
+import { PwaPrompt } from './components/PwaPrompt';
 
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -79,6 +80,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AppRoutes />
+        <PwaPrompt />
         <Toaster
           position="top-right"
           toastOptions={{
