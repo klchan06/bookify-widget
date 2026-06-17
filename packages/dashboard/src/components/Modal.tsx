@@ -39,8 +39,10 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className={`relative bg-white shadow-xl w-full ${sizeClasses[size]} rounded-t-xl sm:rounded-xl sm:mx-4 max-h-[95vh] sm:max-h-[90vh] flex flex-col`}>
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100">
+      <div
+        className={`relative bg-white shadow-xl w-full ${sizeClasses[size]} rounded-t-2xl sm:rounded-xl sm:mx-4 max-h-[92dvh] sm:max-h-[90vh] flex flex-col overflow-hidden`}
+      >
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
           <button
             onClick={onClose}
@@ -49,7 +51,14 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="px-4 sm:px-6 py-4 overflow-y-auto">{children}</div>
+        {/* flex-1 min-h-0 = laat dit gebied krimpen zodat overflow-y-auto echt scrollt (cruciaal op iOS).
+            pb met safe-area = laatste knoppen blijven klikbaar boven de home-indicator. */}
+        <div
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
