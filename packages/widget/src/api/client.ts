@@ -89,6 +89,21 @@ export class BookifyApiClient {
     );
   }
 
+  async getAvailableDays(
+    salonId: string,
+    serviceId: string,
+    from: string,
+    to: string,
+    employeeId?: string
+  ): Promise<string[]> {
+    const params = new URLSearchParams({ salonId, serviceId, from, to });
+    if (employeeId) params.set('employeeId', employeeId);
+    const data = await this.request<{ days: string[] }>(
+      `/api/availability/days?${params.toString()}`
+    );
+    return data.days;
+  }
+
   async createBooking(data: {
     salonId: string;
     serviceId: string;

@@ -42,6 +42,10 @@ export const DateTimeSelect: React.FC<DateTimeSelectProps> = ({
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
 
+  const [availableDays, setAvailableDays] = useState<Set<string> | null>(null);
+  const [daysLoading, setDaysLoading] = useState(false);
+  const [hasAutoSelected, setHasAutoSelected] = useState(false);
+
   const { availability, loading, fetchAvailability } = useAvailability(
     apiClient,
     salonId
@@ -53,6 +57,51 @@ export const DateTimeSelect: React.FC<DateTimeSelectProps> = ({
       fetchAvailability(serviceId, selectedDate, employeeId);
     }
   }, [selectedDate, serviceId, employeeId, fetchAvailability]);
+
+  // Fetch which days in the visible month actually have free slots
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDays = async () => {
+      setDaysLoading(true);
+      const from = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const to = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      try {
+        const days = await apiClient.getAvailableDays(salonId, serviceId, from, to, employeeId);
+        if (!cancelled) setAvailableDays(new Set(days));
+      } catch {
+        if (!cancelled) setAvailableDays(new Set());
+      } finally {
+        if (!cancelled) setDaysLoading(false);
+      }
+    };
+    fetchDays();
+    return () => { cancelled = true; };
+  }, [apiClient, salonId, serviceId, employeeId, currentMonth, currentYear]);
+
+  // Auto-select the first day that has availability (so slots show immediately,
+  // and we land on the next bookable date instead of an empty/closed day).
+  useEffect(() => {
+    if (hasAutoSelected || !availableDays || daysLoading) return;
+    if (availableDays.size > 0) {
+      const first = [...availableDays].sort()[0];
+      setSelectedDate(first);
+      setSelectedSlot(null);
+      setHasAutoSelected(true);
+      return;
+    }
+    // Geen beschikbare dagen deze maand → spring door naar de volgende maand
+    // (max ~3 maanden vooruit zoeken, daarna stoppen).
+    const monthsAhead = (currentYear - today.getFullYear()) * 12 + (currentMonth - today.getMonth());
+    if (monthsAhead < 3) {
+      if (currentMonth === 11) {
+        setCurrentMonth(0);
+        setCurrentYear((y) => y + 1);
+      } else {
+        setCurrentMonth((m) => m + 1);
+      }
+    }
+  }, [availableDays, daysLoading, hasAutoSelected, currentMonth, currentYear]);
 
   const handlePrevMonth = useCallback(() => {
     if (currentMonth === 0) {
@@ -161,7 +210,9 @@ export const DateTimeSelect: React.FC<DateTimeSelectProps> = ({
 
             const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const isTooFar = date > maxDate;
-            const isDisabled = isPast || isTooFar;
+            // Geen vrije slots (gesloten of volgeboekt) → niet aanklikbaar zodra bekend
+            const isUnavailable = availableDays !== null && !availableDays.has(dateStr);
+            const isDisabled = isPast || isTooFar || isUnavailable;
             const isSelected = dateStr === selectedDate;
 
             let className = 'bk-calendar__day';
