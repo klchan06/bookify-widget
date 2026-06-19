@@ -190,12 +190,29 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response, next
       return;
     }
 
-    await prisma.employee.update({
-      where: { id: req.params.id },
-      data: { isActive: false },
-    });
+    // Heeft de medewerker nog afspraken? Dan deactiveren we (data beschermen)
+    // i.p.v. echt verwijderen. Zonder afspraken verwijderen we definitief,
+    // zodat ongebruikte medewerkers uit de lijst verdwijnen.
+    const bookingCount = await prisma.booking.count({ where: { employeeId: req.params.id } });
 
-    res.json({ success: true, message: 'Medewerker gedeactiveerd' });
+    if (bookingCount > 0) {
+      await prisma.employee.update({
+        where: { id: req.params.id },
+        data: { isActive: false },
+      });
+      res.json({
+        success: true,
+        deactivated: true,
+        message: 'Medewerker heeft nog afspraken en is daarom gedeactiveerd in plaats van verwijderd.',
+      });
+      return;
+    }
+
+    // Geen afspraken → definitief verwijderen (gekoppelde werkuren/vrije dagen
+    // verdwijnen automatisch via cascade).
+    await prisma.employee.delete({ where: { id: req.params.id } });
+
+    res.json({ success: true, message: 'Medewerker verwijderd' });
   } catch (err) {
     next(err);
   }

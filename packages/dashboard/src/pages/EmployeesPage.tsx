@@ -252,13 +252,14 @@ export function EmployeesPage() {
                       className={emp.isActive ? 'text-orange-500 hover:text-orange-700 hover:bg-orange-50' : 'text-green-600 hover:text-green-700 hover:bg-green-50'}
                       title={emp.isActive ? 'Deactiveren' : 'Activeren'}
                     />
-                    {emp.isActive && (
+                    {emp.role !== 'owner' && (
                       <Button
                         size="sm"
                         variant="ghost"
                         icon={<Trash2 className="w-4 h-4" />}
                         onClick={() => setDeleteId(emp.id)}
                         className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        title="Verwijderen"
                       />
                     )}
                   </div>

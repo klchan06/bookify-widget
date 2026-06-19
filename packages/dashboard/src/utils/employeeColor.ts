@@ -14,9 +14,20 @@ const EMPLOYEE_COLORS = [
   '#7c3aed', // violet
 ];
 
-// Stable color per employee ID using a simple hash
-export function getEmployeeColor(employeeId: string | undefined): string {
+/**
+ * Geeft een stabiele kleur per medewerker.
+ * Als `orderedIds` (de volledige medewerkerlijst) wordt meegegeven, baseren we de
+ * kleur op de POSITIE in die lijst → twee medewerkers krijgen gegarandeerd nooit
+ * dezelfde kleur. Zonder lijst valt het terug op een hash (kan toevallig botsen).
+ */
+export function getEmployeeColor(employeeId: string | undefined, orderedIds?: string[]): string {
   if (!employeeId) return '#6b7280'; // gray fallback
+
+  if (orderedIds && orderedIds.length) {
+    const idx = orderedIds.indexOf(employeeId);
+    if (idx >= 0) return EMPLOYEE_COLORS[idx % EMPLOYEE_COLORS.length];
+  }
+
   let hash = 0;
   for (let i = 0; i < employeeId.length; i++) {
     hash = (hash * 31 + employeeId.charCodeAt(i)) | 0;

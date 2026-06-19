@@ -9,6 +9,8 @@ interface WeekViewProps {
   bookings: Booking[];
   days?: number; // 4, 5, 6, or 7 (default 7)
   startFromDate?: boolean; // if true, start from `date` instead of Monday
+  /** Volledige, geordende medewerkerlijst — voor stabiele, unieke kleuren */
+  employeeIds?: string[];
   onSlotClick: (date: string, time: string, employeeId?: string) => void;
   onBookingClick: (booking: Booking) => void;
 }
@@ -99,7 +101,7 @@ function layoutBookings(bookings: Booking[]): Array<{ booking: Booking; col: num
   return result;
 }
 
-export function WeekView({ date, bookings, days: dayCount = 7, startFromDate = false, onSlotClick, onBookingClick }: WeekViewProps) {
+export function WeekView({ date, bookings, days: dayCount = 7, startFromDate = false, employeeIds, onSlotClick, onBookingClick }: WeekViewProps) {
   const start = startFromDate ? date : startOfWeek(date, { weekStartsOn: 1 });
   const days = Array.from({ length: dayCount }, (_, i) => addDays(start, i));
   const minWidth = dayCount <= 4 ? '500px' : '700px';
@@ -177,7 +179,7 @@ export function WeekView({ date, bookings, days: dayCount = 7, startFromDate = f
                 const endMinutes = timeToMinutes(booking.endTime) - START_HOUR * 60;
                 const top = (startMinutes / 60) * SLOT_HEIGHT;
                 const height = ((endMinutes - startMinutes) / 60) * SLOT_HEIGHT;
-                const employeeColor = getEmployeeColor(booking.employeeId);
+                const employeeColor = getEmployeeColor(booking.employeeId, employeeIds);
                 const isCancelled = booking.status === 'cancelled';
 
                 // Side-by-side positioning for overlapping bookings

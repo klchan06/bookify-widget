@@ -18,7 +18,7 @@ import type { Booking } from '@bookify/shared';
 type ViewMode = 'resource' | 'day' | '4days' | 'week' | 'workweek' | 'worksat';
 
 const VIEW_MODE_LABELS: Record<ViewMode, string> = {
-  resource: 'Per resource',
+  resource: 'Per medewerker',
   day: 'Dag',
   '4days': '4 dagen',
   week: 'Week',
@@ -217,6 +217,8 @@ export function AgendaPage() {
   };
 
   const employeeOptions = (employees || []).map((e) => ({ value: e.id, label: e.name }));
+  // Volledige, geordende medewerkerlijst → stabiele, unieke kleuren in alle views
+  const employeeIds = (employees || []).map((e) => e.id);
 
   const viewModes: ViewMode[] = ['resource', 'day', '4days', 'week', 'workweek', 'worksat'];
 
@@ -232,6 +234,7 @@ export function AgendaPage() {
             date={currentDate}
             bookings={bookings || []}
             employees={selectedEmployeeId ? (employees || []).filter((e) => e.id === selectedEmployeeId) : employees || []}
+            employeeIds={employeeIds}
             onSlotClick={handleSlotClick}
             onBookingClick={handleBookingClick}
           />
@@ -242,6 +245,7 @@ export function AgendaPage() {
             date={currentDate}
             bookings={bookings || []}
             employees={selectedEmployeeId ? (employees || []).filter((e) => e.id === selectedEmployeeId) : []}
+            employeeIds={employeeIds}
             onSlotClick={handleSlotClick}
             onBookingClick={handleBookingClick}
           />
@@ -253,6 +257,7 @@ export function AgendaPage() {
             bookings={bookings || []}
             days={4}
             startFromDate
+            employeeIds={employeeIds}
             onSlotClick={handleSlotClick}
             onBookingClick={handleBookingClick}
           />
@@ -263,6 +268,7 @@ export function AgendaPage() {
             date={currentDate}
             bookings={bookings || []}
             days={7}
+            employeeIds={employeeIds}
             onSlotClick={handleSlotClick}
             onBookingClick={handleBookingClick}
           />
@@ -273,6 +279,7 @@ export function AgendaPage() {
             date={currentDate}
             bookings={bookings || []}
             days={5}
+            employeeIds={employeeIds}
             onSlotClick={handleSlotClick}
             onBookingClick={handleBookingClick}
           />
@@ -283,6 +290,7 @@ export function AgendaPage() {
             date={currentDate}
             bookings={bookings || []}
             days={6}
+            employeeIds={employeeIds}
             onSlotClick={handleSlotClick}
             onBookingClick={handleBookingClick}
           />
@@ -361,7 +369,7 @@ export function AgendaPage() {
             <div key={emp.id} className="flex items-center gap-1.5">
               <span
                 className="w-3 h-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: getEmployeeColor(emp.id) }}
+                style={{ backgroundColor: getEmployeeColor(emp.id, employeeIds) }}
               />
               <span className="text-gray-700">{emp.name}</span>
             </div>

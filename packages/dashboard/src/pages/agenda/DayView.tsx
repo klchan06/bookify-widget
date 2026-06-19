@@ -8,6 +8,8 @@ interface DayViewProps {
   date: Date;
   bookings: Booking[];
   employees: Employee[];
+  /** Volledige, geordende medewerkerlijst — voor stabiele, unieke kleuren */
+  employeeIds?: string[];
   onSlotClick: (date: string, time: string, employeeId?: string) => void;
   onBookingClick: (booking: Booking) => void;
 }
@@ -29,7 +31,7 @@ function useIsMobile() {
   return isMobile;
 }
 
-export function DayView({ date, bookings, employees, onSlotClick, onBookingClick }: DayViewProps) {
+export function DayView({ date, bookings, employees, employeeIds, onSlotClick, onBookingClick }: DayViewProps) {
   const dateStr = format(date, 'yyyy-MM-dd');
   const dayBookings = bookings.filter((b) => b.date === dateStr);
   const showEmployees = employees.length > 0;
@@ -90,7 +92,7 @@ export function DayView({ date, bookings, employees, onSlotClick, onBookingClick
             </div>
           ) : (
             sortedBookings.map((booking) => {
-              const employeeColor = getEmployeeColor(booking.employeeId);
+              const employeeColor = getEmployeeColor(booking.employeeId, employeeIds);
               const statusColor = BOOKING_STATUSES[booking.status]?.color || '#3b82f6';
               return (
                 <button
@@ -216,7 +218,7 @@ export function DayView({ date, bookings, employees, onSlotClick, onBookingClick
                 const top = (startMinutes / 60) * SLOT_HEIGHT;
                 const height = ((endMinutes - startMinutes) / 60) * SLOT_HEIGHT;
 
-                const employeeColor = getEmployeeColor(booking.employeeId);
+                const employeeColor = getEmployeeColor(booking.employeeId, employeeIds);
                 const isCancelled = booking.status === 'cancelled';
 
                 return (

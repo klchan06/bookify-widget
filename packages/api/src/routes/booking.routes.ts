@@ -433,9 +433,10 @@ router.get('/stats', authenticate, async (req: AuthRequest, res: Response, next)
 // GET /api/bookings - Auth required
 router.get('/', authenticate, async (req: AuthRequest, res: Response, next) => {
   try {
-    const { date, employeeId, status, startDate, endDate, page = '1', pageSize = '20' } = req.query;
+    const { date, employeeId, status, startDate, endDate, page = '1', pageSize } = req.query;
 
     const where: Record<string, unknown> = { salonId: req.user!.salonId };
+    const hasDateFilter = !!date || !!startDate || !!endDate;
     if (date) {
       where.date = date;
     } else if (startDate || endDate) {
@@ -447,7 +448,11 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response, next) => {
     if (status) where.status = status;
 
     const pageNum = parseInt(page as string, 10);
-    const size = parseInt(pageSize as string, 10);
+    // Agenda-weergaven vragen een datumbereik op en hebben ALLE afspraken in dat
+    // bereik nodig. Zonder datumfilter blijft de paginatie (20) actief.
+    const size = pageSize
+      ? parseInt(pageSize as string, 10)
+      : hasDateFilter ? 5000 : 20;
 
     const [bookings, total] = await Promise.all([
       prisma.booking.findMany({
