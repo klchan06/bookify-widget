@@ -116,8 +116,8 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Tim
     // Effectieve duur voor deze medewerker (override of basisduur)
     const effectiveDuration = durationByEmp.get(empId) ?? service.duration;
 
-    // Generate slots
-    for (let slotStart = dayStart; slotStart + effectiveDuration <= dayEnd; slotStart += slotDuration) {
+    // Generate slots: stap = behandeltijd, zodat blokken precies aansluiten
+    for (let slotStart = dayStart; slotStart + effectiveDuration <= dayEnd; slotStart += effectiveDuration) {
       const slotEnd = slotStart + effectiveDuration;
 
       // Check lead time
@@ -265,7 +265,7 @@ export async function getAvailableDays(params: AvailableDaysParams): Promise<str
         if (dateStr === todayStr) leadCutoff = now.getHours() * 60 + now.getMinutes() + bookingLeadTime * 60;
 
         const effDuration = durationByEmp.get(empId) ?? service.duration;
-        for (let s = dayStart; s + effDuration <= dayEnd; s += slotDuration) {
+        for (let s = dayStart; s + effDuration <= dayEnd; s += effDuration) {
           if (s < leadCutoff) continue;
           const e = s + effDuration;
           const hitsBreak = empBreaks.some((b) => s < timeToMinutes(b.endTime) && e > timeToMinutes(b.startTime));
