@@ -53,9 +53,6 @@ export const ServiceSelect: React.FC<ServiceSelectProps> = ({
         <div className="bk-service-card__name">{service.name}</div>
         <div className="bk-service-card__meta">
           {showDuration && <span>{formatDuration(service.duration)}</span>}
-          {service.description && (
-            <span>{service.description}</span>
-          )}
         </div>
       </div>
       {showPrices && (
