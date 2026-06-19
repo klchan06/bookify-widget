@@ -10,3 +10,6 @@ coverage/
 .next/
 .claude/
 .env.local-backup
+
+# Klant-exports met persoonsgegevens (nooit committen)
+*.ics
