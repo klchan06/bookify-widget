@@ -31,7 +31,7 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Tim
   const settings = await prisma.salonSettings.findUnique({ where: { salonId } });
   const slotDuration = settings?.slotDuration || 15;
   const bookingLeadTime = settings?.bookingLeadTime || 2;
-  const bookingWindow = settings?.bookingWindow || 30;
+  const bookingWindow = settings?.bookingWindow || 90;
 
   // Check booking window
   const targetDate = new Date(date + 'T00:00:00');
@@ -172,7 +172,7 @@ export async function getAvailableDays(params: AvailableDaysParams): Promise<str
   const settings = await prisma.salonSettings.findUnique({ where: { salonId } });
   const slotDuration = settings?.slotDuration || 15;
   const bookingLeadTime = settings?.bookingLeadTime || 2;
-  const bookingWindow = settings?.bookingWindow || 30;
+  const bookingWindow = settings?.bookingWindow || 90;
 
   // Bepaal welke medewerkers meetellen
   let employeeIds: string[];
