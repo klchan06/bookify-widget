@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -36,8 +37,10 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+  // Portal naar <body> + hoge z-index: zo ligt het venster gegarandeerd boven
+  // de onderste tab bar (z-40) en ontsnapt het aan elke ouder-stacking context.
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
       <div
         className={`relative bg-white shadow-xl w-full ${sizeClasses[size]} rounded-t-2xl sm:rounded-xl sm:mx-4 max-h-[92dvh] sm:max-h-[90vh] flex flex-col overflow-hidden`}
@@ -60,6 +63,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
