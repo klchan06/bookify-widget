@@ -221,6 +221,10 @@ router.get('/widget-config/:salonId', async (req: Request, res: Response, next) 
       showDuration: true,
       allowEmployeeChoice: settings?.allowEmployeeChoice ?? true,
       requirePhone: settings?.requirePhone ?? true,
+      // Boekregels zodat de widget de juiste kalendergrens/sloturen gebruikt
+      bookingWindow: settings?.bookingWindow ?? 90,
+      bookingLeadTime: settings?.bookingLeadTime ?? 2,
+      slotDuration: settings?.slotDuration ?? 15,
     };
 
     res.json({ success: true, data: config });

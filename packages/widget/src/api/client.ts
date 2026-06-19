@@ -50,10 +50,10 @@ export class BookifyApiClient {
     );
     return {
       salonId,
-      bookingLeadTime: 2,
-      bookingWindow: 30,
+      bookingLeadTime: (config as any).bookingLeadTime ?? 2,
+      bookingWindow: (config as any).bookingWindow ?? 90,
       cancellationWindow: 24,
-      slotDuration: 15,
+      slotDuration: (config as any).slotDuration ?? 15,
       allowEmployeeChoice: (config as any).allowEmployeeChoice ?? true,
       requirePhone: (config as any).requirePhone ?? true,
       confirmationEmailEnabled: true,
