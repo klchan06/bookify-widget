@@ -26,18 +26,16 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500 mt-1">
             {format(new Date(), "EEEE d MMMM yyyy", { locale: nl })}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button icon={<Plus className="w-4 h-4" />} onClick={() => setShowNewBooking(true)}>
-            Nieuwe afspraak
-          </Button>
-        </div>
+        <Button className="w-full sm:w-auto" icon={<Plus className="w-4 h-4" />} onClick={() => setShowNewBooking(true)}>
+          Nieuwe afspraak
+        </Button>
       </div>
 
       {/* Stats cards */}

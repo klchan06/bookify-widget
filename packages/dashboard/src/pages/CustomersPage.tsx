@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import {
   UserPlus, Upload, Download, Pencil, Trash2, Merge, ArrowLeft,
-  Mail, Phone, Calendar, MapPin, Search, UserCircle,
+  Mail, Phone, Calendar, MapPin, Search, UserCircle, ChevronRight,
 } from 'lucide-react';
 import { Modal } from '../components/Modal';
 import { Input } from '../components/Input';
@@ -416,7 +416,7 @@ export function CustomersPage() {
         />
       </div>
 
-      {/* Table */}
+      {/* List: cards on mobile, table on desktop */}
       <div className="card p-0">
         {isLoading ? (
           <LoadingSpinner />
@@ -427,12 +427,52 @@ export function CustomersPage() {
             icon={<UserCircle className="w-8 h-8" />}
           />
         ) : (
-          <Table
-            columns={columns}
-            data={filteredCustomers}
-            keyExtractor={(c) => c.id}
-            onRowClick={(c) => setSelectedId(c.id)}
-          />
+          <>
+            {/* Mobile: tappable cards */}
+            <ul className="divide-y divide-gray-100 lg:hidden">
+              {filteredCustomers.map((c) => (
+                <li key={c.id}>
+                  <button
+                    onClick={() => setSelectedId(c.id)}
+                    className={`w-full flex items-center gap-3 p-4 text-left active:bg-gray-50 transition-colors min-h-[64px] ${!c.isActive ? 'opacity-60' : ''}`}
+                  >
+                    <Avatar name={c.name} size="md" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-900 truncate">{c.name}</span>
+                        {!c.isActive && (
+                          <span className="flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-200 text-gray-700">
+                            Inactief
+                          </span>
+                        )}
+                      </div>
+                      {c.phone && (
+                        <p className="text-sm text-gray-500 truncate flex items-center gap-1.5 mt-0.5">
+                          <Phone className="w-3.5 h-3.5 flex-shrink-0" /> {c.phone}
+                        </p>
+                      )}
+                      {c.email && (
+                        <p className="text-sm text-gray-500 truncate flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 flex-shrink-0" /> {c.email}
+                        </p>
+                      )}
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {/* Desktop: table */}
+            <div className="hidden lg:block">
+              <Table
+                columns={columns}
+                data={filteredCustomers}
+                keyExtractor={(c) => c.id}
+                onRowClick={(c) => setSelectedId(c.id)}
+              />
+            </div>
+          </>
         )}
       </div>
 

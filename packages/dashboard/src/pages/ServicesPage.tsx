@@ -211,12 +211,12 @@ export function ServicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Diensten</h1>
           <p className="text-gray-500 mt-1">Beheer je diensten en prijzen</p>
         </div>
-        <Button icon={<Plus className="w-4 h-4" />} onClick={openCreate}>
+        <Button className="w-full sm:w-auto" icon={<Plus className="w-4 h-4" />} onClick={openCreate}>
           Nieuwe dienst
         </Button>
       </div>
