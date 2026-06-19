@@ -24,9 +24,15 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const url: string = error.config?.url || '';
+    const isAuthAttempt = url.includes('/auth/login') || url.includes('/auth/register');
+    // Bij een mislukte login/registratie NIET hard herladen — laat de pagina
+    // netjes de foutmelding tonen. Alleen bij een verlopen sessie uitloggen.
+    if (error.response?.status === 401 && !isAuthAttempt) {
       localStorage.removeItem('bookify_token');
-      window.location.href = '/login';
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

@@ -28,7 +28,7 @@ export function LoginPage() {
 
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email.trim(), password);
       toast.success('Welkom terug!');
       navigate('/');
     } catch {
@@ -59,6 +59,10 @@ export function LoginPage() {
               placeholder="naam@voorbeeld.nl"
               error={errors.email}
               autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              inputMode="email"
             />
             <Input
               label="Wachtwoord"

@@ -155,9 +155,11 @@ router.post('/register', validate(registerSchema), async (req, res: Response, ne
 router.post('/login', validate(loginSchema), async (req, res: Response, next) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = (email || '').trim();
 
+    // E-mail hoofdletter-ongevoelig matchen (iOS typt vaak kleine letter / voegt spatie toe)
     const employee = await prisma.employee.findFirst({
-      where: { email, isActive: true },
+      where: { email: { equals: normalizedEmail, mode: 'insensitive' }, isActive: true },
     });
 
     if (!employee || !employee.passwordHash) {
