@@ -33,6 +33,17 @@ services:
         sync: false
       - key: RESEND_FROM_EMAIL
         sync: false
+      # SMTP via eigen mailbox (heeft voorrang boven Resend)
+      - key: SMTP_HOST
+        value: smtp.strato.com
+      - key: SMTP_PORT
+        value: "465"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
       - key: APP_URL
         sync: false
       - key: WIDGET_URL

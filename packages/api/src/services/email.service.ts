@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import nodemailer, { type Transporter } from 'nodemailer';
 import { env } from '../utils/env.js';
 import { prisma } from '../utils/prisma.js';
 import { generateManageToken } from '../utils/manageToken.js';
@@ -10,6 +11,25 @@ function getResend(): Resend | null {
   if (!key) return null;
   if (!_resend) _resend = new Resend(key);
   return _resend;
+}
+
+// SMTP (eigen mailbox) - heeft voorrang boven Resend als geconfigureerd
+let _smtp: Transporter | null = null;
+function getSmtp(): Transporter | null {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) return null;
+  if (!_smtp) {
+    const port = Number(process.env.SMTP_PORT) || 465;
+    _smtp = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+    });
+  }
+  return _smtp;
 }
 
 interface BookingEmailData {
@@ -246,25 +266,33 @@ function buildTemplateVars(data: BookingEmailData): Record<string, string> {
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  const resend = getResend();
-  if (!resend) {
-    console.log(`[Email] No RESEND_API_KEY set - would send to ${to}: ${subject}`);
-    return;
+  // 1) Voorkeur: SMTP via de eigen mailbox (geen domeinverificatie nodig)
+  const smtp = getSmtp();
+  if (smtp) {
+    try {
+      const from = process.env.SMTP_FROM || `Blessed Barbers <${process.env.SMTP_USER}>`;
+      const info = await smtp.sendMail({ from, to, subject, html });
+      console.log(`[Email] Sent via SMTP to ${to}: ${subject} (id: ${info.messageId})`);
+      return;
+    } catch (err) {
+      console.error('[Email] SMTP failed, falling back to Resend:', err);
+    }
   }
 
+  // 2) Terugval: Resend
+  const resend = getResend();
+  if (!resend) {
+    console.log(`[Email] No SMTP/Resend configured - would send to ${to}: ${subject}`);
+    return;
+  }
   try {
     const fromAddress = process.env.RESEND_FROM_EMAIL || env.RESEND_FROM_EMAIL;
-    const result = await resend.emails.send({
-      from: fromAddress,
-      to,
-      subject,
-      html,
-    });
+    const result = await resend.emails.send({ from: fromAddress, to, subject, html });
     if (result.error) {
       console.error(`[Email] REJECTED by Resend for ${to}: ${result.error.message || JSON.stringify(result.error)}`);
       return;
     }
-    console.log(`[Email] Sent to ${to}: ${subject} (id: ${result.data?.id})`);
+    console.log(`[Email] Sent via Resend to ${to}: ${subject} (id: ${result.data?.id})`);
   } catch (err) {
     console.error('[Email] Failed to send:', err);
   }
