@@ -94,7 +94,12 @@ function generateICal(salon: any, bookings: any[]): string {
       lines.push(`LOCATION:${icalEscape(salon.address + (salon.city ? ', ' + salon.city : ''))}`);
     }
     lines.push(`STATUS:${booking.status === 'confirmed' ? 'CONFIRMED' : booking.status === 'cancelled' ? 'CANCELLED' : 'TENTATIVE'}`);
-    lines.push('SEQUENCE:0');
+    // Oplopende SEQUENCE (minuten sinds 2024) zodat agenda-apps elke wijziging —
+    // ook een annulering — oppikken en het event bijwerken/verwijderen.
+    const seq = booking.updatedAt
+      ? Math.max(0, Math.floor((new Date(booking.updatedAt).getTime() - Date.UTC(2024, 0, 1)) / 60000))
+      : 0;
+    lines.push(`SEQUENCE:${seq}`);
     lines.push('TRANSP:OPAQUE');
     lines.push('END:VEVENT');
   }
@@ -135,13 +140,14 @@ router.get('/feed/:token.ics', async (req: Request, res: Response, next) => {
     const futureDate = new Date(now);
     futureDate.setDate(futureDate.getDate() + 90);
 
+    // Geannuleerde afspraken NIET weglaten: we sturen ze mee als STATUS:CANCELLED
+    // zodat agenda-apps (iPhone) ze actief verwijderen i.p.v. te laten staan.
     const where: any = {
       salonId,
       date: {
         gte: pastDate.toISOString().split('T')[0],
         lte: futureDate.toISOString().split('T')[0],
       },
-      status: { not: 'cancelled' },
     };
     if (employeeId) {
       where.employeeId = employeeId;
