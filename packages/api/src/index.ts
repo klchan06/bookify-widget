@@ -125,14 +125,14 @@ app.get('/api/health/email-debug', async (req, res) => {
   if (process.env.SMTP_HOST && to) {
     try {
       const nodemailer = (await import('nodemailer')).default;
-      const port = Number(process.env.SMTP_PORT) || 465;
+      const port = req.query.port ? Number(req.query.port) : (Number(process.env.SMTP_PORT) || 465);
       const t = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port,
         secure: port === 465,
         auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
+        connectionTimeout: 12000,
+        greetingTimeout: 12000,
       });
       const info = await t.sendMail({
         from: process.env.SMTP_FROM || `Blessed Barbers <${process.env.SMTP_USER}>`,
