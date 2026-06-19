@@ -1,4 +1,4 @@
-import type { Employee, WorkingHours, EmployeeBreak, SpecialDay, EmployeeService } from '@bookify/shared';
+import type { Employee, WorkingHours, EmployeeBreak, SpecialDay } from '@bookify/shared';
 import apiClient from './client';
 
 export const employeesApi = {
@@ -63,13 +63,28 @@ export const employeesApi = {
     await apiClient.delete(`/employees/${id}/special-days/${dayId}`);
   },
 
-  // Services
-  getServices: async (id: string): Promise<EmployeeService[]> => {
+  // Services + prijs/duur per medewerker
+  getServicePricing: async (id: string): Promise<EmployeeServicePricing[]> => {
     const res = await apiClient.get(`/employees/${id}/services`);
     return res.data.data;
   },
 
-  updateServices: async (id: string, serviceIds: string[]): Promise<void> => {
-    await apiClient.put(`/employees/${id}/services`, { serviceIds });
+  setServicePrice: async (
+    id: string,
+    serviceId: string,
+    data: { price: number | null; duration: number | null }
+  ): Promise<void> => {
+    await apiClient.put(`/employees/${id}/services/${serviceId}`, data);
   },
 };
+
+export interface EmployeeServicePricing {
+  serviceId: string;
+  name: string;
+  category: string | null;
+  basePrice: number;
+  baseDuration: number;
+  price: number | null; // null = basisprijs
+  duration: number | null; // null = basisduur
+  offered: boolean;
+}

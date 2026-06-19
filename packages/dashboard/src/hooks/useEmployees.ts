@@ -118,10 +118,22 @@ export function useDeleteSpecialDay() {
   });
 }
 
-export function useEmployeeServices(employeeId: string) {
+export function useEmployeeServicePricing(employeeId: string) {
   return useQuery({
-    queryKey: ['employees', employeeId, 'services'],
-    queryFn: () => employeesApi.getServices(employeeId),
+    queryKey: ['employees', employeeId, 'service-pricing'],
+    queryFn: () => employeesApi.getServicePricing(employeeId),
     enabled: !!employeeId,
+  });
+}
+
+export function useSetEmployeeServicePrice(employeeId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ serviceId, price, duration }: { serviceId: string; price: number | null; duration: number | null }) =>
+      employeesApi.setServicePrice(employeeId, serviceId, { price, duration }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees', employeeId, 'service-pricing'] });
+    },
+    onError: () => toast.error('Opslaan mislukt'),
   });
 }

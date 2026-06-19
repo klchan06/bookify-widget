@@ -9,6 +9,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadingSpinner } from '../components/LoadingScreen';
 import { EmptyState } from '../components/EmptyState';
 import { useServices, useCreateService, useUpdateService, useDeleteService } from '../hooks/useServices';
+import { useEmployees } from '../hooks/useEmployees';
+import { EmployeePricingPanel } from '../components/EmployeePricingPanel';
 import type { Service } from '@bookify/shared';
 
 const CATEGORIES = [
@@ -40,10 +42,13 @@ const defaultForm: ServiceFormData = {
 
 export function ServicesPage() {
   const { data: services, isLoading } = useServices();
+  const { data: employees } = useEmployees();
   const createService = useCreateService();
   const updateService = useUpdateService();
   const deleteService = useDeleteService();
 
+  // 'general' = basisdiensten beheren; anders een employeeId = prijzen per medewerker
+  const [activeTab, setActiveTab] = useState<string>('general');
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ServiceFormData>(defaultForm);
@@ -209,20 +214,56 @@ export function ServicesPage() {
     </div>
   );
 
+  const activeEmployees = (employees || []).filter((e) => e.isActive);
+  const activeEmployee = activeEmployees.find((e) => e.id === activeTab);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Diensten</h1>
-          <p className="text-gray-500 mt-1">Beheer je diensten en prijzen</p>
+          <p className="text-gray-500 mt-1">Beheer je diensten en prijzen per medewerker</p>
         </div>
-        <Button className="w-full sm:w-auto" icon={<Plus className="w-4 h-4" />} onClick={openCreate}>
-          Nieuwe dienst
-        </Button>
+        {activeTab === 'general' && (
+          <Button className="w-full sm:w-auto" icon={<Plus className="w-4 h-4" />} onClick={openCreate}>
+            Nieuwe dienst
+          </Button>
+        )}
       </div>
 
+      {/* Medewerker-tabs: Algemeen + per medewerker eigen prijzen */}
+      {activeEmployees.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <button
+            onClick={() => setActiveTab('general')}
+            className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'general'
+                ? 'bg-brand-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Algemeen
+          </button>
+          {activeEmployees.map((e) => (
+            <button
+              key={e.id}
+              onClick={() => setActiveTab(e.id)}
+              className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === e.id
+                  ? 'bg-brand-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {e.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="card p-0">
-        {isLoading ? (
+        {activeTab !== 'general' && activeEmployee ? (
+          <EmployeePricingPanel employeeId={activeEmployee.id} employeeName={activeEmployee.name} />
+        ) : isLoading ? (
           <LoadingSpinner />
         ) : !services?.length ? (
           <EmptyState

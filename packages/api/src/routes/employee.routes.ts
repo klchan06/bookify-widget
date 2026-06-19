@@ -333,4 +333,80 @@ router.get('/:id/special-days', async (req, res: Response, next) => {
   }
 });
 
+// GET /api/employees/:id/services - diensten met prijs/duur per medewerker
+router.get('/:id/services', authenticate, async (req: AuthRequest, res: Response, next) => {
+  try {
+    const employee = await prisma.employee.findFirst({
+      where: { id: req.params.id, salonId: req.user!.salonId },
+    });
+    if (!employee) {
+      res.status(404).json({ success: false, error: 'Medewerker niet gevonden' });
+      return;
+    }
+
+    const services = await prisma.service.findMany({
+      where: { salonId: req.user!.salonId, isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+    const links = await prisma.employeeService.findMany({ where: { employeeId: req.params.id } });
+    const linkMap = new Map(links.map((l) => [l.serviceId, l]));
+
+    const data = services.map((s) => {
+      const l = linkMap.get(s.id);
+      return {
+        serviceId: s.id,
+        name: s.name,
+        category: s.category,
+        basePrice: s.price,
+        baseDuration: s.duration,
+        price: l?.price ?? null, // null = gebruikt basisprijs
+        duration: l?.duration ?? null, // null = gebruikt basisduur
+        offered: !!l,
+      };
+    });
+
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/employees/:id/services/:serviceId - prijs/duur per medewerker instellen
+const empServiceSchema = z.object({
+  price: z.number().int().min(0).nullable().optional(),
+  duration: z.number().int().min(0).nullable().optional(),
+});
+router.put('/:id/services/:serviceId', authenticate, validate(empServiceSchema), async (req: AuthRequest, res: Response, next) => {
+  try {
+    const employee = await prisma.employee.findFirst({
+      where: { id: req.params.id, salonId: req.user!.salonId },
+    });
+    if (!employee) {
+      res.status(404).json({ success: false, error: 'Medewerker niet gevonden' });
+      return;
+    }
+    // Dienst moet bij dezelfde salon horen
+    const service = await prisma.service.findFirst({
+      where: { id: req.params.serviceId, salonId: req.user!.salonId },
+    });
+    if (!service) {
+      res.status(404).json({ success: false, error: 'Dienst niet gevonden' });
+      return;
+    }
+
+    const price = req.body.price ?? null;
+    const duration = req.body.duration ?? null;
+
+    const link = await prisma.employeeService.upsert({
+      where: { employeeId_serviceId: { employeeId: req.params.id, serviceId: req.params.serviceId } },
+      create: { employeeId: req.params.id, serviceId: req.params.serviceId, price, duration },
+      update: { price, duration },
+    });
+
+    res.json({ success: true, data: link });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
