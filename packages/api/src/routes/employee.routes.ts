@@ -63,6 +63,7 @@ router.get('/', optionalAuth, async (req, res: Response, next) => {
         id: true, salonId: true, name: true, email: true, phone: true,
         avatarUrl: true, role: true, isActive: true, createdAt: true,
         employeeServices: { include: { service: true } },
+        _count: { select: { bookings: true } },
       },
       orderBy: { name: 'asc' },
     });
@@ -190,29 +191,19 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response, next
       return;
     }
 
-    // Heeft de medewerker nog afspraken? Dan deactiveren we (data beschermen)
-    // i.p.v. echt verwijderen. Zonder afspraken verwijderen we definitief,
-    // zodat ongebruikte medewerkers uit de lijst verdwijnen.
-    const bookingCount = await prisma.booking.count({ where: { employeeId: req.params.id } });
-
-    if (bookingCount > 0) {
-      await prisma.employee.update({
-        where: { id: req.params.id },
-        data: { isActive: false },
-      });
-      res.json({
-        success: true,
-        deactivated: true,
-        message: 'Medewerker heeft nog afspraken en is daarom gedeactiveerd in plaats van verwijderd.',
-      });
+    // De eigenaar kan niet verwijderd worden (zou salon-toegang breken).
+    if (existing.role === 'owner') {
+      res.status(400).json({ success: false, error: 'De eigenaar kan niet verwijderd worden.' });
       return;
     }
 
-    // Geen afspraken → definitief verwijderen (gekoppelde werkuren/vrije dagen
-    // verdwijnen automatisch via cascade).
+    // Definitief verwijderen. Gekoppelde afspraken/werkuren/vrije dagen verdwijnen
+    // automatisch via cascade — het aantal afspraken geven we terug zodat de UI
+    // het kan tonen (de waarschuwing wordt vooraf in het dashboard getoond).
+    const deletedBookings = await prisma.booking.count({ where: { employeeId: req.params.id } });
     await prisma.employee.delete({ where: { id: req.params.id } });
 
-    res.json({ success: true, message: 'Medewerker verwijderd' });
+    res.json({ success: true, message: 'Medewerker verwijderd', deletedBookings });
   } catch (err) {
     next(err);
   }

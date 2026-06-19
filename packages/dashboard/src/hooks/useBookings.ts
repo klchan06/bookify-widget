@@ -78,3 +78,20 @@ export function useUpdateBooking() {
     onError: () => toast.error('Fout bij bijwerken afspraak'),
   });
 }
+
+export function useDeleteBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => bookingsApi.delete(id),
+    onSuccess: (_res, id) => {
+      // Optimistic: meteen uit de agenda halen zodat het slot weer vrij oogt
+      queryClient.setQueriesData<unknown[]>({ queryKey: ['bookings'] }, (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter((b: any) => b.id !== id);
+      });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      toast.success('Afspraak verwijderd');
+    },
+    onError: () => toast.error('Fout bij verwijderen afspraak'),
+  });
+}

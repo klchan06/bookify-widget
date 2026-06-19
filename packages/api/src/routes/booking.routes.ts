@@ -794,4 +794,22 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response
   }
 });
 
+// DELETE /api/bookings/:id - definitief verwijderen (verdwijnt uit agenda,
+// slot komt direct weer vrij in de widget)
+router.delete('/:id', authenticate, async (req: AuthRequest, res: Response, next) => {
+  try {
+    const existing = await prisma.booking.findFirst({
+      where: { id: req.params.id, salonId: req.user!.salonId },
+    });
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Afspraak niet gevonden' });
+      return;
+    }
+    await prisma.booking.delete({ where: { id: req.params.id } });
+    res.json({ success: true, message: 'Afspraak verwijderd' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

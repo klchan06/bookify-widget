@@ -149,3 +149,124 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Tim
 
   return allSlots;
 }
+
+interface AvailableDaysParams {
+  salonId: string;
+  serviceId: string;
+  employeeId?: string;
+  from: string; // "YYYY-MM-DD"
+  to: string;   // "YYYY-MM-DD"
+}
+
+/**
+ * Geeft de lijst datums (YYYY-MM-DD) in [from, to] waarop minstens één tijdslot
+ * beschikbaar is. Gebruikt bulk-queries zodat een hele maand in enkele queries
+ * berekend wordt (i.p.v. per dag een losse availability-call).
+ */
+export async function getAvailableDays(params: AvailableDaysParams): Promise<string[]> {
+  const { salonId, serviceId, employeeId, from, to } = params;
+
+  const service = await prisma.service.findUnique({ where: { id: serviceId } });
+  if (!service) return [];
+
+  const settings = await prisma.salonSettings.findUnique({ where: { salonId } });
+  const slotDuration = settings?.slotDuration || 15;
+  const bookingLeadTime = settings?.bookingLeadTime || 2;
+  const bookingWindow = settings?.bookingWindow || 30;
+
+  // Bepaal welke medewerkers meetellen
+  let employeeIds: string[];
+  if (employeeId) {
+    employeeIds = [employeeId];
+  } else {
+    const employeeServices = await prisma.employeeService.findMany({
+      where: { serviceId },
+      include: { employee: true },
+    });
+    employeeIds = employeeServices
+      .filter((es) => es.employee.isActive && es.employee.salonId === salonId)
+      .map((es) => es.employeeId);
+  }
+  if (employeeIds.length === 0) return [];
+
+  // Bulk inladen voor het hele bereik
+  const [workingHours, specialDays, breaks, bookings] = await Promise.all([
+    prisma.workingHours.findMany({ where: { employeeId: { in: employeeIds } } }),
+    prisma.specialDay.findMany({ where: { employeeId: { in: employeeIds }, date: { gte: from, lte: to } } }),
+    prisma.employeeBreak.findMany({ where: { employeeId: { in: employeeIds } } }),
+    prisma.booking.findMany({
+      where: { employeeId: { in: employeeIds }, date: { gte: from, lte: to }, status: { notIn: ['cancelled'] } },
+      select: { employeeId: true, date: true, startTime: true, endTime: true },
+    }),
+  ]);
+
+  const whMap = new Map<string, typeof workingHours[number]>();
+  workingHours.forEach((w) => whMap.set(`${w.employeeId}|${w.dayOfWeek}`, w));
+  const sdMap = new Map<string, typeof specialDays[number]>();
+  specialDays.forEach((s) => sdMap.set(`${s.employeeId}|${s.date}`, s));
+  const brMap = new Map<string, typeof breaks>();
+  breaks.forEach((b) => {
+    const k = `${b.employeeId}|${b.dayOfWeek}`;
+    if (!brMap.has(k)) brMap.set(k, []);
+    brMap.get(k)!.push(b);
+  });
+  const bkMap = new Map<string, typeof bookings>();
+  bookings.forEach((b) => {
+    const k = `${b.employeeId}|${b.date}`;
+    if (!bkMap.has(k)) bkMap.set(k, []);
+    bkMap.get(k)!.push(b);
+  });
+
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const today = new Date(todayStr + 'T00:00:00');
+  const maxDate = new Date(today);
+  maxDate.setDate(maxDate.getDate() + bookingWindow);
+
+  const result: string[] = [];
+  const cursor = new Date(from + 'T00:00:00');
+  const end = new Date(to + 'T00:00:00');
+
+  while (cursor <= end) {
+    const dateStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+    const inWindow = cursor >= today && cursor <= maxDate;
+
+    if (inWindow) {
+      const dow = cursor.getDay();
+      let hasSlot = false;
+
+      for (const empId of employeeIds) {
+        const sd = sdMap.get(`${empId}|${dateStr}`);
+        if (sd?.isOff) continue;
+        const wh = whMap.get(`${empId}|${dow}`);
+        if (!wh || !wh.isWorking) continue;
+
+        const dayStart = timeToMinutes(sd?.startTime || wh.startTime);
+        const dayEnd = timeToMinutes(sd?.endTime || wh.endTime);
+        const empBreaks = brMap.get(`${empId}|${dow}`) || [];
+        const empBookings = bkMap.get(`${empId}|${dateStr}`) || [];
+
+        let leadCutoff = 0;
+        if (dateStr === todayStr) leadCutoff = now.getHours() * 60 + now.getMinutes() + bookingLeadTime * 60;
+
+        for (let s = dayStart; s + service.duration <= dayEnd; s += slotDuration) {
+          if (s < leadCutoff) continue;
+          const e = s + service.duration;
+          const hitsBreak = empBreaks.some((b) => s < timeToMinutes(b.endTime) && e > timeToMinutes(b.startTime));
+          if (hitsBreak) continue;
+          const hitsBooking = empBookings.some((b) => s < timeToMinutes(b.endTime) && e > timeToMinutes(b.startTime));
+          if (hitsBooking) continue;
+          hasSlot = true;
+          break;
+        }
+        if (hasSlot) break;
+      }
+
+      if (hasSlot) result.push(dateStr);
+    }
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return result;
+}

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
-import { Clock, User, Scissors, Calendar, MessageSquare, CheckCircle, XCircle, AlertCircle, Award, Lock } from 'lucide-react';
+import { Clock, User, Scissors, Calendar, MessageSquare, CheckCircle, XCircle, AlertCircle, Award, Lock, Trash2 } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
 import { Avatar } from '../../components/Avatar';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { useUpdateBookingStatus } from '../../hooks/useBookings';
+import { useUpdateBookingStatus, useDeleteBooking } from '../../hooks/useBookings';
 import type { Booking, BookingStatus } from '@bookify/shared';
 
 interface BookingDetailModalProps {
@@ -18,13 +18,21 @@ interface BookingDetailModalProps {
 
 export function BookingDetailModal({ isOpen, onClose, booking }: BookingDetailModalProps) {
   const updateStatus = useUpdateBookingStatus();
+  const deleteBooking = useDeleteBooking();
   const [confirmAction, setConfirmAction] = useState<{ status: BookingStatus; label: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleStatusChange = (status: BookingStatus) => {
     updateStatus.mutate(
       { id: booking.id, status },
       { onSuccess: () => { setConfirmAction(null); onClose(); } }
     );
+  };
+
+  const handleDelete = () => {
+    deleteBooking.mutate(booking.id, {
+      onSuccess: () => { setConfirmDelete(false); onClose(); },
+    });
   };
 
   const formatPrice = (cents: number) =>
@@ -151,6 +159,18 @@ export function BookingDetailModal({ isOpen, onClose, booking }: BookingDetailMo
                 </Button>
               </>
             )}
+
+            {/* Verwijderen: altijd beschikbaar (ook voor geannuleerde afspraken).
+                Haalt de afspraak echt weg → verdwijnt uit agenda, slot weer vrij. */}
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<Trash2 className="w-4 h-4" />}
+              onClick={() => setConfirmDelete(true)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 ml-auto"
+            >
+              Verwijderen
+            </Button>
           </div>
         </div>
       </Modal>
@@ -167,6 +187,17 @@ export function BookingDetailModal({ isOpen, onClose, booking }: BookingDetailMo
           loading={updateStatus.isPending}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={handleDelete}
+        title="Afspraak verwijderen"
+        message="Weet je zeker dat je deze afspraak definitief wilt verwijderen? Hij verdwijnt uit de agenda en het tijdslot komt weer vrij om te boeken. Dit kan niet ongedaan worden gemaakt."
+        confirmLabel="Verwijderen"
+        variant="danger"
+        loading={deleteBooking.isPending}
+      />
     </>
   );
 }

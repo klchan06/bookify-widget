@@ -162,6 +162,12 @@ export function EmployeesPage() {
     }
   };
 
+  const deleteTarget = employees?.find((e) => e.id === deleteId);
+  const deleteBookingCount = (deleteTarget as unknown as { _count?: { bookings: number } })?._count?.bookings ?? 0;
+  const deleteMessage = deleteBookingCount > 0
+    ? `Let op: deze medewerker heeft ${deleteBookingCount} afspra${deleteBookingCount === 1 ? 'ak' : 'ken'} in de agenda. Bij verwijderen worden die afspraken óók definitief verwijderd. Dit kan niet ongedaan worden gemaakt.`
+    : 'Weet je zeker dat je deze medewerker definitief wilt verwijderen? Dit kan niet ongedaan worden gemaakt.';
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -351,8 +357,9 @@ export function EmployeesPage() {
         onClose={() => setDeleteId(null)}
         onConfirm={handleDelete}
         title="Medewerker verwijderen"
-        message="Weet je zeker dat je deze medewerker wilt verwijderen? Alle gekoppelde afspraken blijven behouden."
+        message={deleteMessage}
         confirmLabel="Verwijderen"
+        variant="danger"
         loading={deleteEmployee.isPending}
       />
     </div>
