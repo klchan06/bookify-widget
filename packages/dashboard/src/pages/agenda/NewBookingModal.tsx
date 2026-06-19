@@ -6,7 +6,7 @@ import { Input } from '../../components/Input';
 import { Select } from '../../components/Select';
 import { DatePicker } from '../../components/DatePicker';
 import { useServices } from '../../hooks/useServices';
-import { useEmployees } from '../../hooks/useEmployees';
+import { useEmployees, useEmployeeServicePricing } from '../../hooks/useEmployees';
 import { useCreateBooking } from '../../hooks/useBookings';
 import { bookingsApi } from '../../api/bookings';
 import { availabilityApi } from '../../api/availability';
@@ -49,6 +49,9 @@ export function NewBookingModal({ isOpen, onClose, defaults }: NewBookingModalPr
     recurringEndCount: '4',
     recurringEndDate: '',
   });
+
+  // Prijzen/duur van de gekozen medewerker (leeg = basisprijzen)
+  const { data: empPricing } = useEmployeeServicePricing(form.employeeId);
 
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [searchResults, setSearchResults] = useState<Customer[]>([]);
@@ -188,10 +191,16 @@ export function NewBookingModal({ isOpen, onClose, defaults }: NewBookingModalPr
     }
   };
 
-  const serviceOptions = (services || []).filter((s) => s.isActive).map((s) => ({
-    value: s.id,
-    label: `${s.name} (${s.duration} min - ${(s.price / 100).toFixed(2)})`,
-  }));
+  // Met gekozen medewerker: toon diens prijs/duur; anders de basisprijzen
+  const serviceOptions = (form.employeeId && empPricing?.length)
+    ? empPricing.map((r) => ({
+        value: r.serviceId,
+        label: `${r.name} (${r.duration ?? r.baseDuration} min - ${((r.price ?? r.basePrice) / 100).toFixed(2)})`,
+      }))
+    : (services || []).filter((s) => s.isActive).map((s) => ({
+        value: s.id,
+        label: `${s.name} (${s.duration} min - ${(s.price / 100).toFixed(2)})`,
+      }));
 
   const employeeOptions = (employees || []).filter((e) => e.isActive).map((e) => ({
     value: e.id,
