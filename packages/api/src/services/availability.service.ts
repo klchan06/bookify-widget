@@ -62,6 +62,12 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Tim
 
   if (employeeIds.length === 0) return [];
 
+  // Per-medewerker duur-overrides (null = basisduur van de dienst)
+  const empServices = await prisma.employeeService.findMany({
+    where: { serviceId, employeeId: { in: employeeIds } },
+  });
+  const durationByEmp = new Map(empServices.map((es) => [es.employeeId, es.duration]));
+
   const allSlots: TimeSlot[] = [];
 
   for (const empId of employeeIds) {
@@ -107,9 +113,12 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Tim
       leadTimeCutoffMinutes = currentMinutes + bookingLeadTime * 60;
     }
 
+    // Effectieve duur voor deze medewerker (override of basisduur)
+    const effectiveDuration = durationByEmp.get(empId) ?? service.duration;
+
     // Generate slots
-    for (let slotStart = dayStart; slotStart + service.duration <= dayEnd; slotStart += slotDuration) {
-      const slotEnd = slotStart + service.duration;
+    for (let slotStart = dayStart; slotStart + effectiveDuration <= dayEnd; slotStart += slotDuration) {
+      const slotEnd = slotStart + effectiveDuration;
 
       // Check lead time
       if (slotStart < leadTimeCutoffMinutes) continue;
@@ -189,6 +198,12 @@ export async function getAvailableDays(params: AvailableDaysParams): Promise<str
   }
   if (employeeIds.length === 0) return [];
 
+  // Per-medewerker duur-overrides (null = basisduur)
+  const empServicesForDuration = await prisma.employeeService.findMany({
+    where: { serviceId, employeeId: { in: employeeIds } },
+  });
+  const durationByEmp = new Map(empServicesForDuration.map((es) => [es.employeeId, es.duration]));
+
   // Bulk inladen voor het hele bereik
   const [workingHours, specialDays, breaks, bookings] = await Promise.all([
     prisma.workingHours.findMany({ where: { employeeId: { in: employeeIds } } }),
@@ -249,9 +264,10 @@ export async function getAvailableDays(params: AvailableDaysParams): Promise<str
         let leadCutoff = 0;
         if (dateStr === todayStr) leadCutoff = now.getHours() * 60 + now.getMinutes() + bookingLeadTime * 60;
 
-        for (let s = dayStart; s + service.duration <= dayEnd; s += slotDuration) {
+        const effDuration = durationByEmp.get(empId) ?? service.duration;
+        for (let s = dayStart; s + effDuration <= dayEnd; s += slotDuration) {
           if (s < leadCutoff) continue;
-          const e = s + service.duration;
+          const e = s + effDuration;
           const hitsBreak = empBreaks.some((b) => s < timeToMinutes(b.endTime) && e > timeToMinutes(b.startTime));
           if (hitsBreak) continue;
           const hitsBooking = empBookings.some((b) => s < timeToMinutes(b.endTime) && e > timeToMinutes(b.startTime));

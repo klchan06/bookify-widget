@@ -127,8 +127,12 @@ router.post('/', validate(createBookingSchema), async (req: Request, res: Respon
       }
     }
 
-    // Calculate end time
-    const endTime = minutesToTime(timeToMinutes(startTime) + service.duration);
+    // Calculate end time (gebruik de duur van deze medewerker indien afwijkend)
+    const empServiceForDuration = await prisma.employeeService.findUnique({
+      where: { employeeId_serviceId: { employeeId, serviceId } },
+    });
+    const effectiveDuration = empServiceForDuration?.duration ?? service.duration;
+    const endTime = minutesToTime(timeToMinutes(startTime) + effectiveDuration);
 
     // Smart customer dedup: match on email OR phone
     let customer = await prisma.customer.findFirst({
@@ -324,7 +328,10 @@ router.post('/recurring', authenticate, validate(recurringBookingSchema), async 
     }
 
     const recurringGroupId = crypto.randomUUID();
-    const endTime = minutesToTime(timeToMinutes(startTime) + service.duration);
+    const empServiceRec = employeeId
+      ? await prisma.employeeService.findUnique({ where: { employeeId_serviceId: { employeeId, serviceId } } })
+      : null;
+    const endTime = minutesToTime(timeToMinutes(startTime) + (empServiceRec?.duration ?? service.duration));
     const createdBookings = [];
 
     for (const bookingDate of dates) {
@@ -602,7 +609,10 @@ router.post('/manage/:token/reschedule', async (req: Request, res: Response, nex
       return;
     }
 
-    const endTime = minutesToTime(timeToMinutes(startTime) + existing.service.duration);
+    const empSvcResched = await prisma.employeeService.findUnique({
+      where: { employeeId_serviceId: { employeeId: existing.employeeId, serviceId: existing.serviceId } },
+    });
+    const endTime = minutesToTime(timeToMinutes(startTime) + (empSvcResched?.duration ?? existing.service.duration));
 
     const booking = await prisma.booking.update({
       where: { id: bookingId },
@@ -653,11 +663,15 @@ router.put('/:id', authenticate, validate(updateBookingSchema), async (req: Auth
     }
 
     const updateData: Record<string, unknown> = {};
+    const effEmpId = req.body.employeeId || existing.employeeId;
 
     if (req.body.date) updateData.date = req.body.date;
     if (req.body.startTime) {
       updateData.startTime = req.body.startTime;
-      updateData.endTime = minutesToTime(timeToMinutes(req.body.startTime) + existing.service.duration);
+      const empSvcPut = await prisma.employeeService.findUnique({
+        where: { employeeId_serviceId: { employeeId: effEmpId, serviceId: existing.serviceId } },
+      });
+      updateData.endTime = minutesToTime(timeToMinutes(req.body.startTime) + (empSvcPut?.duration ?? existing.service.duration));
     }
     if (req.body.employeeId) updateData.employeeId = req.body.employeeId;
     if (req.body.notes !== undefined) updateData.notes = req.body.notes;
