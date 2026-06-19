@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { format, addDays, subDays, addWeeks, subWeeks, addMonths, subMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameMonth, isToday as isDateToday, isSameDay } from 'date-fns';
 import { nl } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, CalendarPlus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, CalendarPlus, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '../../components/Button';
 import { Select } from '../../components/Select';
 import { LoadingSpinner } from '../../components/LoadingScreen';
@@ -111,6 +111,7 @@ export function AgendaPage() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showNewBooking, setShowNewBooking] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [newBookingDefaults, setNewBookingDefaults] = useState<{ date?: string; startTime?: string; employeeId?: string }>({});
 
   const { data: employees } = useEmployees();
@@ -314,9 +315,30 @@ export function AgendaPage() {
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900 ml-1 sm:ml-2 capitalize">
-            {getTitle()}
-          </h2>
+          <div className="relative">
+            <button
+              onClick={() => setShowDatePicker((v) => !v)}
+              className="flex items-center gap-1.5 text-base sm:text-lg font-semibold text-gray-900 ml-1 sm:ml-2 capitalize hover:text-brand-600 transition-colors"
+              title="Kies een datum"
+            >
+              {getTitle()}
+              <CalendarIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            </button>
+            {showDatePicker && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowDatePicker(false)} />
+                <div className="absolute z-40 mt-2 left-0 w-64">
+                  <MiniCalendar
+                    selectedDate={currentDate}
+                    onSelectDate={(date) => {
+                      setCurrentDate(date);
+                      setShowDatePicker(false);
+                    }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
