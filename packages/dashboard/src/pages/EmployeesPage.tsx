@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Pencil, Trash2, Clock, Calendar, Power } from 'lucide-react';
+import { Plus, Pencil, Trash2, Clock, Calendar, Power, CalendarClock, Copy } from 'lucide-react';
 import { DAYS_OF_WEEK } from '@bookify/shared';
 import type { Employee, EmployeeRole, WorkingHours } from '@bookify/shared';
 import { Button } from '../components/Button';
@@ -53,6 +53,54 @@ const defaultForm: EmployeeFormData = {
   password: '',
 };
 
+// iCal-feed link per medewerker (zelfde token-opzet als de API: salonId:employeeId)
+const API_BASE = import.meta.env.VITE_API_URL || 'https://boekgerust-api.onrender.com';
+function feedUrls(salonId: string, employeeId: string) {
+  const token = btoa(`${salonId}:${employeeId}`).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const https = `${API_BASE}/api/calendar/feed/${token}.ics`;
+  return { https, webcal: https.replace(/^https?:\/\//, 'webcal://') };
+}
+
+function CalendarFeedModal({ employee, onClose }: { employee: Employee; onClose: () => void }) {
+  const { https, webcal } = feedUrls(employee.salonId, employee.id);
+  const copy = () => {
+    navigator.clipboard?.writeText(https)
+      .then(() => toast.success('Agenda-link gekopieerd'))
+      .catch(() => toast.error('Kopiëren niet gelukt'));
+  };
+  return (
+    <Modal isOpen onClose={onClose} title={`Agenda van ${employee.name}`} size="md">
+      <div className="space-y-4">
+        <p className="text-sm text-gray-600">
+          Abonneer op deze agenda op je telefoon, en geef 'm daarna een eigen kleur in de Agenda-app.
+          Zo zie je de afspraken van <strong>{employee.name}</strong> in een aparte kleur naast je andere medewerkers.
+        </p>
+        <a href={webcal} className="btn-primary w-full flex items-center justify-center gap-2">
+          <CalendarClock className="w-4 h-4" /> Abonneer in Agenda-app
+        </a>
+        <div className="space-y-1">
+          <label className="block text-xs font-medium text-gray-500">Of kopieer de link:</label>
+          <div className="flex gap-2">
+            <input
+              readOnly
+              value={https}
+              onFocus={(e) => e.currentTarget.select()}
+              className="input-field text-xs flex-1"
+            />
+            <Button variant="secondary" size="sm" icon={<Copy className="w-4 h-4" />} onClick={copy}>
+              Kopieer
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-gray-400">
+          Werkt het tikken niet? Plak de link op je iPhone via Instellingen → Agenda → Account →
+          Agenda-abonnement toevoegen.
+        </p>
+      </div>
+    </Modal>
+  );
+}
+
 export function EmployeesPage() {
   const { data: employees, isLoading } = useEmployees();
   const createEmployee = useCreateEmployee();
@@ -66,6 +114,7 @@ export function EmployeesPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [form, setForm] = useState<EmployeeFormData>(defaultForm);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [feedEmployee, setFeedEmployee] = useState<Employee | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('active');
 
@@ -247,6 +296,9 @@ export function EmployeesPage() {
                     <Button size="sm" variant="ghost" icon={<Calendar className="w-4 h-4" />} onClick={() => openSpecialDays(emp)}>
                       Vrije dagen
                     </Button>
+                    <Button size="sm" variant="ghost" icon={<CalendarClock className="w-4 h-4" />} onClick={() => setFeedEmployee(emp)}>
+                      Agenda
+                    </Button>
                     <Button size="sm" variant="ghost" icon={<Pencil className="w-4 h-4" />} onClick={() => openEdit(emp)}>
                       Bewerk
                     </Button>
@@ -349,6 +401,11 @@ export function EmployeesPage() {
           onClose={() => { setShowSpecialDaysModal(false); setSelectedEmployee(null); }}
           employee={selectedEmployee}
         />
+      )}
+
+      {/* Agenda-feed (abonneren per medewerker) */}
+      {feedEmployee && (
+        <CalendarFeedModal employee={feedEmployee} onClose={() => setFeedEmployee(null)} />
       )}
 
       {/* Delete confirmation */}
