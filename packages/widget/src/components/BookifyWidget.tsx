@@ -21,8 +21,8 @@ interface BookifyWidgetProps {
 }
 
 const STEP_TITLES: Record<number, string> = {
-  1: 'step.service',
-  2: 'step.employee',
+  1: 'step.employee',
+  2: 'step.service',
   3: 'step.datetime',
   4: 'step.details',
   5: 'step.confirm',
@@ -102,24 +102,23 @@ export const BookifyWidget: React.FC<BookifyWidgetProps> = ({ config }) => {
     switch (booking.step) {
       case 1:
         return (
-          <ServiceSelect
+          <EmployeeSelect
             apiClient={apiClient}
             salonId={config.salonId}
             locale={locale}
-            showPrices={showPrices}
-            showDuration={showDuration}
-            onSelect={booking.selectService}
+            onSelect={booking.selectEmployee}
           />
         );
       case 2:
         return (
-          <EmployeeSelect
+          <ServiceSelect
             apiClient={apiClient}
             salonId={config.salonId}
-            serviceId={booking.selectedService!.id}
+            employeeId={booking.selectedEmployee?.id}
             locale={locale}
-            onSelect={booking.selectEmployee}
-            onSkip={booking.skipEmployeeStep}
+            showPrices={showPrices}
+            showDuration={showDuration}
+            onSelect={booking.selectService}
           />
         );
       case 3:

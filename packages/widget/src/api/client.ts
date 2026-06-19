@@ -66,8 +66,10 @@ export class BookifyApiClient {
     };
   }
 
-  async getServices(salonId: string): Promise<Service[]> {
-    return this.request<Service[]>(`/api/services?salonId=${salonId}`);
+  async getServices(salonId: string, employeeId?: string): Promise<Service[]> {
+    const params = new URLSearchParams({ salonId });
+    if (employeeId) params.set('employeeId', employeeId);
+    return this.request<Service[]>(`/api/services?${params.toString()}`);
   }
 
   async getEmployees(salonId: string, serviceId?: string): Promise<Employee[]> {

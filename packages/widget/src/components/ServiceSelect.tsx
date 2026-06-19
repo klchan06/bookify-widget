@@ -10,6 +10,7 @@ import type { BookifyApiClient } from '../api/client';
 interface ServiceSelectProps {
   apiClient: BookifyApiClient;
   salonId: string;
+  employeeId?: string;
   locale: Locale;
   showPrices: boolean;
   showDuration: boolean;
@@ -19,14 +20,15 @@ interface ServiceSelectProps {
 export const ServiceSelect: React.FC<ServiceSelectProps> = ({
   apiClient,
   salonId,
+  employeeId,
   locale,
   showPrices,
   showDuration,
   onSelect,
 }) => {
   const { data: services, loading, error, refetch } = useApi(
-    () => apiClient.getServices(salonId),
-    [salonId]
+    () => apiClient.getServices(salonId, employeeId),
+    [salonId, employeeId]
   );
 
   if (loading) return <LoadingSpinner locale={locale} />;

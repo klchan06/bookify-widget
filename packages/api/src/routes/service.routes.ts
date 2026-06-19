@@ -27,9 +27,14 @@ router.get('/', optionalAuth, async (req, res: Response, next) => {
     }
 
     const includeInactive = req.query.includeInactive === 'true';
-    const where: { salonId: string; isActive?: boolean } = { salonId };
+    const employeeId = req.query.employeeId as string | undefined;
+    const where: { salonId: string; isActive?: boolean; employeeServices?: object } = { salonId };
     if (!includeInactive) {
       where.isActive = true;
+    }
+    // Alleen de diensten die deze medewerker aanbiedt
+    if (employeeId) {
+      where.employeeServices = { some: { employeeId } };
     }
 
     const services = await prisma.service.findMany({
@@ -42,13 +47,25 @@ router.get('/', optionalAuth, async (req, res: Response, next) => {
       orderBy: { sortOrder: 'asc' },
     });
 
-    const result = services.map((s: typeof services[number]) => ({
-      ...s,
-      employees: s.employeeServices
-        .map((es: typeof s.employeeServices[number]) => es.employee)
-        .filter((e: { isActive: boolean }) => e.isActive),
-      employeeServices: undefined,
-    }));
+    const result = services.map((s: typeof services[number]) => {
+      // Prijs/duur per medewerker overschrijven indien ingesteld
+      let price = s.price;
+      let duration = s.duration;
+      if (employeeId) {
+        const es = s.employeeServices.find((x: typeof s.employeeServices[number]) => x.employeeId === employeeId);
+        if (es?.price != null) price = es.price;
+        if (es?.duration != null) duration = es.duration;
+      }
+      return {
+        ...s,
+        price,
+        duration,
+        employees: s.employeeServices
+          .map((es: typeof s.employeeServices[number]) => es.employee)
+          .filter((e: { isActive: boolean }) => e.isActive),
+        employeeServices: undefined,
+      };
+    });
 
     res.json({ success: true, data: result });
   } catch (err) {

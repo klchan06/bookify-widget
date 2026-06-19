@@ -155,6 +155,8 @@ model Service {
 model EmployeeService {
   employeeId String
   serviceId  String
+  price      Int?     // prijs (in centen) voor deze medewerker; null = standaard Service.price
+  duration   Int?     // optionele afwijkende duur in minuten; null = Service.duration
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)

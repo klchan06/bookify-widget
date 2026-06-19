@@ -46,12 +46,13 @@ export function useBooking() {
     setState((prev) => ({ ...prev, step: Math.max(1, prev.step - 1) }));
   }, []);
 
-  const selectService = useCallback((service: Service) => {
+  // Stap 1: eerst de medewerker (prijzen verschillen per medewerker)
+  const selectEmployee = useCallback((employee: Employee | null) => {
     setState((prev) => ({
       ...prev,
-      selectedService: service,
-      selectedEmployee: null,
-      noEmployeePreference: false,
+      selectedEmployee: employee,
+      noEmployeePreference: employee === null,
+      selectedService: null,
       selectedDate: null,
       selectedTime: null,
       selectedEmployeeId: null,
@@ -59,14 +60,14 @@ export function useBooking() {
     }));
   }, []);
 
-  const selectEmployee = useCallback((employee: Employee | null) => {
+  // Stap 2: daarna de dienst (met de prijs van die medewerker)
+  const selectService = useCallback((service: Service) => {
     setState((prev) => ({
       ...prev,
-      selectedEmployee: employee,
-      noEmployeePreference: employee === null,
+      selectedService: service,
       selectedDate: null,
       selectedTime: null,
-      selectedEmployeeId: null,
+      selectedEmployeeId: prev.selectedEmployee?.id ?? null,
       step: 3,
     }));
   }, []);
