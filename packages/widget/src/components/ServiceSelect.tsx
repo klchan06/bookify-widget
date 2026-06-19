@@ -35,19 +35,10 @@ export const ServiceSelect: React.FC<ServiceSelectProps> = ({
     return <div className="bk-empty">{t('service.noServices', locale)}</div>;
   }
 
-  // Group by category
-  const categories = new Map<string, Service[]>();
-  const uncategorized: Service[] = [];
-
-  for (const service of services.filter((s) => s.isActive)) {
-    if (service.category) {
-      const list = categories.get(service.category) || [];
-      list.push(service);
-      categories.set(service.category, list);
-    } else {
-      uncategorized.push(service);
-    }
-  }
+  // Eén platte lijst, gesorteerd — geen categorie-koppen
+  const activeServices = services
+    .filter((s) => s.isActive)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
 
   const renderServiceCard = (service: Service) => (
     <button
@@ -77,17 +68,7 @@ export const ServiceSelect: React.FC<ServiceSelectProps> = ({
     <div>
       <h2 className="bk-content__title">{t('service.title', locale)}</h2>
       <div className="bk-services">
-        {Array.from(categories.entries()).map(([category, categoryServices]) => (
-          <div key={category} className="bk-category">
-            <div className="bk-category__label">{category}</div>
-            {categoryServices
-              .sort((a, b) => a.sortOrder - b.sortOrder)
-              .map(renderServiceCard)}
-          </div>
-        ))}
-        {uncategorized
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-          .map(renderServiceCard)}
+        {activeServices.map(renderServiceCard)}
       </div>
     </div>
   );
