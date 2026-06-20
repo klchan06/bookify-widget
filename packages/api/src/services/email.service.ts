@@ -173,21 +173,17 @@ function actionButtonsHtml(manageUrl: string): string {
         </p>
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
           <tr>
-            <td align="center">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td style="padding-right:8px;">
-                    <a href="${manageUrl}" style="display:inline-block;padding:14px 28px;background-color:#1a1a2e;color:#ffffff;text-decoration:none;border-radius:10px;font-size:15px;font-weight:600;">
-                      Afspraak wijzigen
-                    </a>
-                  </td>
-                  <td style="padding-left:8px;">
-                    <a href="${manageUrl}#cancel" style="display:inline-block;padding:14px 28px;background-color:#ffffff;color:#1a1a2e;text-decoration:none;border-radius:10px;font-size:15px;font-weight:600;border:1.5px solid #d2d2d7;">
-                      Annuleren
-                    </a>
-                  </td>
-                </tr>
-              </table>
+            <td style="padding-bottom:10px;">
+              <a href="${manageUrl}" style="display:block;width:100%;box-sizing:border-box;padding:14px 0;background-color:#1a1a2e;color:#ffffff;text-decoration:none;border-radius:10px;font-size:15px;font-weight:600;text-align:center;">
+                Afspraak wijzigen
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <a href="${manageUrl}#cancel" style="display:block;width:100%;box-sizing:border-box;padding:14px 0;background-color:#ffffff;color:#1a1a2e;text-decoration:none;border-radius:10px;font-size:15px;font-weight:600;text-align:center;border:1.5px solid #d2d2d7;">
+                Annuleren
+              </a>
             </td>
           </tr>
         </table>
@@ -216,7 +212,12 @@ function contactInfoHtml(data: BookingEmailData): string {
 
 function getManageUrl(bookingId: string): string {
   const token = generateManageToken(bookingId);
-  const baseUrl = env.WIDGET_URL || env.APP_URL || 'http://localhost:3002';
+  // De manage-pagina draait op de widget-frontend, NIET op de API.
+  // Negeer een verkeerd ingestelde WIDGET_URL die naar de API (onrender) wijst.
+  const envUrl = env.WIDGET_URL || env.APP_URL || '';
+  const baseUrl = envUrl && !envUrl.includes('onrender.com')
+    ? envUrl
+    : 'https://afspraken.boekgerust.nl';
   return `${baseUrl}/manage/${token}`;
 }
 
