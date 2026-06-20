@@ -266,7 +266,23 @@ function buildTemplateVars(data: BookingEmailData): Record<string, string> {
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  // 1) Voorkeur: SMTP via de eigen mailbox (geen domeinverificatie nodig)
+  // 1) Voorkeur: Resend (HTTPS-API, werkt betrouwbaar vanaf de server)
+  const resend = getResend();
+  if (resend) {
+    try {
+      const fromAddress = process.env.RESEND_FROM_EMAIL || env.RESEND_FROM_EMAIL;
+      const result = await resend.emails.send({ from: fromAddress, to, subject, html });
+      if (!result.error) {
+        console.log(`[Email] Sent via Resend to ${to}: ${subject} (id: ${result.data?.id})`);
+        return;
+      }
+      console.error(`[Email] Resend rejected for ${to}: ${result.error.message || JSON.stringify(result.error)}`);
+    } catch (err) {
+      console.error('[Email] Resend failed, trying SMTP:', err);
+    }
+  }
+
+  // 2) Terugval: SMTP via de eigen mailbox (werkt o.a. lokaal; op Render geblokkeerd)
   const smtp = getSmtp();
   if (smtp) {
     try {
@@ -275,27 +291,11 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
       console.log(`[Email] Sent via SMTP to ${to}: ${subject} (id: ${info.messageId})`);
       return;
     } catch (err) {
-      console.error('[Email] SMTP failed, falling back to Resend:', err);
+      console.error('[Email] SMTP failed:', err);
     }
   }
 
-  // 2) Terugval: Resend
-  const resend = getResend();
-  if (!resend) {
-    console.log(`[Email] No SMTP/Resend configured - would send to ${to}: ${subject}`);
-    return;
-  }
-  try {
-    const fromAddress = process.env.RESEND_FROM_EMAIL || env.RESEND_FROM_EMAIL;
-    const result = await resend.emails.send({ from: fromAddress, to, subject, html });
-    if (result.error) {
-      console.error(`[Email] REJECTED by Resend for ${to}: ${result.error.message || JSON.stringify(result.error)}`);
-      return;
-    }
-    console.log(`[Email] Sent via Resend to ${to}: ${subject} (id: ${result.data?.id})`);
-  } catch (err) {
-    console.error('[Email] Failed to send:', err);
-  }
+  console.log(`[Email] Geen werkend transport - zou versturen naar ${to}: ${subject}`);
 }
 
 export async function sendBookingConfirmation(data: BookingEmailData): Promise<void> {
