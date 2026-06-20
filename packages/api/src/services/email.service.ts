@@ -220,6 +220,38 @@ function getManageUrl(bookingId: string): string {
   return `${baseUrl}/manage/${token}`;
 }
 
+// Genereer een .ics-kalenderbestand zodat de klant de afspraak kan toevoegen
+function generateICS(data: BookingEmailData): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const toStamp = (date: string, time: string) => {
+    const [y, m, d] = date.split('-');
+    const [h, min] = time.split(':');
+    return `${y}${m}${d}T${h}${min}00`; // floating local time (NL)
+  };
+  const now = new Date();
+  const dtstamp = `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}T${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}Z`;
+  const esc = (s: string) => (s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  const location = [data.salonAddress, data.salonCity].filter(Boolean).join(', ');
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Boekgerust//Afspraak//NL',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${data.bookingId}@boekgerust.nl`,
+    `DTSTAMP:${dtstamp}`,
+    `DTSTART:${toStamp(data.date, data.startTime)}`,
+    `DTEND:${toStamp(data.date, data.endTime)}`,
+    `SUMMARY:${esc(data.serviceName)} - ${esc(data.salonName)}`,
+    location ? `LOCATION:${esc(location)}` : '',
+    `DESCRIPTION:${esc(`Afspraak voor ${data.serviceName} bij ${data.employeeName}.`)}`,
+    'STATUS:CONFIRMED',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].filter(Boolean).join('\r\n');
+}
+
 function bookingDetailsHtml(data: BookingEmailData): string {
   return `
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:12px;">
@@ -265,13 +297,16 @@ function buildTemplateVars(data: BookingEmailData): Record<string, string> {
   };
 }
 
-async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+async function sendEmail(to: string, subject: string, html: string, ics?: string): Promise<void> {
   // 1) Voorkeur: Resend (HTTPS-API, werkt betrouwbaar vanaf de server)
   const resend = getResend();
   if (resend) {
     try {
       const fromAddress = process.env.RESEND_FROM_EMAIL || env.RESEND_FROM_EMAIL;
-      const result = await resend.emails.send({ from: fromAddress, to, subject, html });
+      const result = await resend.emails.send({
+        from: fromAddress, to, subject, html,
+        ...(ics ? { attachments: [{ filename: 'afspraak.ics', content: Buffer.from(ics).toString('base64') }] } : {}),
+      });
       if (!result.error) {
         console.log(`[Email] Sent via Resend to ${to}: ${subject} (id: ${result.data?.id})`);
         return;
@@ -287,7 +322,10 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
   if (smtp) {
     try {
       const from = process.env.SMTP_FROM || `Blessed Barbers <${process.env.SMTP_USER}>`;
-      const info = await smtp.sendMail({ from, to, subject, html });
+      const info = await smtp.sendMail({
+        from, to, subject, html,
+        ...(ics ? { attachments: [{ filename: 'afspraak.ics', content: ics, contentType: 'text/calendar; method=PUBLISH' }] } : {}),
+      });
       console.log(`[Email] Sent via SMTP to ${to}: ${subject} (id: ${info.messageId})`);
       return;
     } catch (err) {
@@ -315,7 +353,9 @@ export async function sendBookingConfirmation(data: BookingEmailData): Promise<v
       contactInfoHtml(data),
   );
 
-  await sendEmail(data.customerEmail, subject, html);
+  // .ics-kalenderbijlage meesturen zodat de klant de afspraak kan opslaan
+  const ics = generateICS(data);
+  await sendEmail(data.customerEmail, subject, html, ics);
 }
 
 export async function sendBookingNotification(data: BookingEmailData): Promise<void> {

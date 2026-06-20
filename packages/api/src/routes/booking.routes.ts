@@ -597,6 +597,16 @@ router.post('/manage/:token/reschedule', async (req: Request, res: Response, nex
       return;
     }
 
+    // Wijzigen mag tot X uur van tevoren (zelfde venster als annuleren)
+    const rsSettings = await prisma.salonSettings.findUnique({ where: { salonId: existing.salonId } });
+    const rsWindowHours = rsSettings?.cancellationWindow || 24;
+    const rsBookingDateTime = new Date(`${existing.date}T${existing.startTime}:00`);
+    const rsHoursUntil = (rsBookingDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
+    if (rsHoursUntil < rsWindowHours) {
+      res.status(400).json({ success: false, error: `Wijzigen moet minimaal ${rsWindowHours} uur van tevoren. Neem contact op met de salon.` });
+      return;
+    }
+
     const slots = await getAvailableSlots({
       salonId: existing.salonId,
       serviceId: existing.serviceId,
