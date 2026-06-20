@@ -17,7 +17,7 @@ async function bootstrap() {
   if (manageMatch) {
     widgetRoot.style.display = 'none';
     const { mountManagePage } = await import('./manage-entry');
-    mountManagePage(manageRoot, manageMatch[1]);
+    mountManagePage(manageRoot, manageMatch[1], apiUrl);
   } else {
     manageRoot.style.display = 'none';
     await import('./web-component');
