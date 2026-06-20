@@ -105,49 +105,6 @@ app.get('/api/health', (_req, res) => {
   res.json({ success: true, data: { status: 'ok', timestamp: new Date().toISOString() } });
 });
 
-// TIJDELIJK debug-endpoint voor e-mail (verwijderen na diagnose)
-app.get('/api/health/email-debug', async (req, res) => {
-  if (req.query.secret !== 'blessed-debug-2026') {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-  const status = {
-    SMTP_HOST: process.env.SMTP_HOST || null,
-    SMTP_PORT: process.env.SMTP_PORT || null,
-    SMTP_USER: process.env.SMTP_USER ? process.env.SMTP_USER.replace(/(.{3}).*(@.*)/, '$1***$2') : null,
-    SMTP_PASS_set: !!process.env.SMTP_PASS,
-    SMTP_PASS_len: process.env.SMTP_PASS ? process.env.SMTP_PASS.length : 0,
-    SMTP_FROM: process.env.SMTP_FROM || null,
-    RESEND_KEY_set: !!process.env.RESEND_API_KEY,
-    RESEND_FROM: process.env.RESEND_FROM_EMAIL || null,
-  };
-  let smtpTest = 'not attempted (geen ?to= of geen SMTP_HOST)';
-  const to = typeof req.query.to === 'string' ? req.query.to : '';
-  if (process.env.SMTP_HOST && to) {
-    try {
-      const nodemailer = (await import('nodemailer')).default;
-      const port = req.query.port ? Number(req.query.port) : (Number(process.env.SMTP_PORT) || 465);
-      const t = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port,
-        secure: port === 465,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-        connectionTimeout: 12000,
-        greetingTimeout: 12000,
-      });
-      const info = await t.sendMail({
-        from: process.env.SMTP_FROM || `Blessed Barbers <${process.env.SMTP_USER}>`,
-        to,
-        subject: 'Render SMTP debug-test',
-        html: '<p>Verzonden vanaf de Render-server. Als je deze ziet, werkt productie-SMTP.</p>',
-      });
-      smtpTest = `OK messageId=${info.messageId} accepted=${JSON.stringify(info.accepted)} rejected=${JSON.stringify(info.rejected)}`;
-    } catch (e: any) {
-      smtpTest = `FAIL: ${e?.code || ''} ${e?.message || String(e)}`;
-    }
-  }
-  res.json({ status, smtpTest });
-});
-
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/services', publicLimiter, serviceRoutes);
