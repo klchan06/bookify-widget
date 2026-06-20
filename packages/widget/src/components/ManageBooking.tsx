@@ -283,8 +283,8 @@ function BookingDetailsCard({ booking }: { booking: BookingData }) {
   return (
     <div style={{
       background: '#f5f5f7',
-      borderRadius: '12px',
-      padding: '20px',
+      borderRadius: '14px',
+      padding: '8px 24px',
     }}>
       <DetailRow label="Dienst" value={booking.service.name} />
       <DetailRow label="Datum" value={formatDate(booking.date)} />
@@ -301,11 +301,11 @@ function BookingDetailsCard({ booking }: { booking: BookingData }) {
 function DetailRow({ label, value, isLast }: { label: string; value: string; isLast?: boolean }) {
   return (
     <div style={{
-      padding: '12px 0',
+      padding: '18px 0',
       borderBottom: isLast ? 'none' : '1px solid #e5e5ea',
     }}>
-      <p style={{ margin: 0, fontSize: '11px', color: '#86868b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</p>
-      <p style={{ margin: '4px 0 0 0', fontSize: '15px', color: '#1d1d1f', fontWeight: 600 }}>{value}</p>
+      <p style={{ margin: 0, fontSize: '12px', color: '#86868b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</p>
+      <p style={{ margin: '8px 0 0 0', fontSize: '17px', color: '#1d1d1f', fontWeight: 600, lineHeight: 1.4 }}>{value}</p>
     </div>
   );
 }
