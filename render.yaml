@@ -29,6 +29,13 @@ services:
         sync: false
       - key: JWT_EXPIRES_IN
         value: 7d
+      # Brevo (primair mailtransport - werkt met Strato)
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_FROM_EMAIL
+        value: noreply@blessedbarbers.nl
+      - key: BREVO_FROM_NAME
+        value: Blessed Barbers
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL

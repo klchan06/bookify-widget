@@ -299,7 +299,36 @@ function buildTemplateVars(data: BookingEmailData): Record<string, string> {
 }
 
 async function sendEmail(to: string, subject: string, html: string, ics?: string): Promise<void> {
-  // 1) Voorkeur: Resend (HTTPS-API, werkt betrouwbaar vanaf de server)
+  // 1) Voorkeur: Brevo (HTTPS-API, werkt met Strato-nameservers)
+  const brevoKey = process.env.BREVO_API_KEY;
+  if (brevoKey) {
+    try {
+      const fromEmail = process.env.BREVO_FROM_EMAIL || 'noreply@blessedbarbers.nl';
+      const fromName = process.env.BREVO_FROM_NAME || 'Blessed Barbers';
+      const payload: Record<string, unknown> = {
+        sender: { email: fromEmail, name: fromName },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      };
+      if (ics) payload.attachment = [{ content: Buffer.from(ics).toString('base64'), name: 'afspraak.ics' }];
+      const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': brevoKey, 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (r.ok) {
+        console.log(`[Email] Sent via Brevo to ${to}: ${subject}`);
+        return;
+      }
+      const errText = await r.text();
+      console.error(`[Email] Brevo rejected for ${to}: ${r.status} ${errText.slice(0, 200)}`);
+    } catch (err) {
+      console.error('[Email] Brevo failed, trying Resend:', err);
+    }
+  }
+
+  // 2) Terugval: Resend (HTTPS-API)
   const resend = getResend();
   if (resend) {
     try {
