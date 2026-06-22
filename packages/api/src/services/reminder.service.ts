@@ -77,18 +77,21 @@ export function startReminderCron(): void {
   // 13 hours/day × 31 days = 403 hours/month → safe with room for builds + redeploys
   // Outside these hours: service spins down (cold start when first request comes in)
   // This ensures we stay within the free tier even with 31-day months and multiple deploys
-  const selfUrl = process.env.APP_URL;
+  // BELANGRIJK: ping de API ZELF (niet APP_URL = dashboard), anders houdt de
+  // ping de API niet wakker en krijg je alsnog een cold start (~30s) bij de eerste bezoeker.
+  // Render injecteert RENDER_EXTERNAL_URL automatisch met de eigen service-URL.
+  const selfUrl = process.env.RENDER_EXTERNAL_URL || 'https://boekgerust-api.onrender.com';
   if (selfUrl && selfUrl.startsWith('http')) {
-    // Cron format: minute hour * * * (every 10 min, hours 8-20, every day)
-    // Note: Render servers run in UTC. Europe/Amsterdam is UTC+1 (CET) or UTC+2 (CEST)
-    // We use 7-19 UTC which covers 08:00-21:00 CET (winter) and 09:00-21:00 CEST (summer)
-    cron.schedule('*/10 7-19 * * *', async () => {
+    // Elke 5 min, 6-20 UTC = 08:00-22:00 NL (zomer) / 07:00-21:00 NL (winter).
+    // Render slaapt na ~15 min inactiviteit, dus 5 min interval houdt 'm ruim wakker.
+    // 15 u/dag × 31 = 465 u/maand → binnen de 750u gratis-limiet.
+    cron.schedule('*/5 6-20 * * *', async () => {
       try {
         await fetch(`${selfUrl}/api/health`);
       } catch {
         // Ignore - this is just a keep-alive
       }
     });
-    console.log(`[KeepAlive] Self-ping during business hours (07-19 UTC = 08-21 NL time)`);
+    console.log(`[KeepAlive] Self-ping ${selfUrl}/api/health every 5 min (06-20 UTC)`);
   }
 }
