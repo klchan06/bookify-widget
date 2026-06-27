@@ -27,6 +27,82 @@ function minutesToTime(minutes: number): string {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
+// Normaliseer contactgegevens zodat dedup ook near-duplicates (hoofdletters, spaties, +31) pakt
+function normEmail(email?: string | null): string {
+  return (email || '').trim().toLowerCase();
+}
+function normPhone(phone?: string | null): string | null {
+  if (!phone) return null;
+  let p = phone.replace(/[\s\-()]/g, '');
+  if (p.startsWith('+31')) p = '0' + p.slice(3);
+  else if (p.startsWith('0031')) p = '0' + p.slice(4);
+  p = p.replace(/[^\d]/g, '');
+  return p || null;
+}
+
+// Vind bestaande klant of maak een nieuwe aan - kogelvrij tegen dubbele klikken (races),
+// hoofdletter-/spatieverschillen en bestaande dubbele records. Geeft NOOIT een P2002 ("Dit
+// record bestaat al") meer terug: bij een botsing wordt de bestaande klant opgehaald en gebruikt.
+async function findOrCreateCustomer(
+  salonId: string,
+  input: { name: string; email: string; phone?: string }
+) {
+  const email = normEmail(input.email);
+  const phone = normPhone(input.phone);
+  const name = (input.name || '').trim();
+
+  const findExisting = () => {
+    const or: any[] = [];
+    if (email) or.push({ email: { equals: email, mode: 'insensitive' } });
+    if (phone) or.push({ phone });
+    if (or.length === 0) return Promise.resolve(null);
+    return prisma.customer.findFirst({ where: { salonId, OR: or } });
+  };
+
+  const existing = await findExisting();
+  if (existing) {
+    // Werk naam bij + vul ONTBREKENDE contactgegevens aan (niet overschrijven -> geen botsing)
+    return prisma.customer.update({
+      where: { id: existing.id },
+      data: {
+        name: name || existing.name,
+        email: existing.email || email,
+        phone: existing.phone || phone,
+      },
+    });
+  }
+
+  // Nieuwe klant: nummer op basis van het HOOGSTE bestaande nummer (niet de laatst aangemaakte)
+  const nameParts = name.split(/\s+/);
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const last = await prisma.customer.findFirst({
+      where: { salonId },
+      orderBy: { customerNumber: 'desc' },
+      select: { customerNumber: true },
+    });
+    const baseNum = last?.customerNumber ? parseInt(last.customerNumber.replace(/\D/g, '')) || 0 : 0;
+    const customerNumber = `C${String(baseNum + 1 + attempt).padStart(6, '0')}`;
+    try {
+      return await prisma.customer.create({
+        data: { salonId, customerNumber, firstName, lastName, name, email, phone },
+      });
+    } catch (e: any) {
+      if (e?.code !== 'P2002') throw e;
+      const target = (e.meta?.target as string[] | undefined) || [];
+      // Botst op email/phone -> klant bestaat al (race of dedup-miss): haal op en gebruik die
+      if (target.includes('email') || target.includes('phone')) {
+        const found = await findExisting();
+        if (found) return found;
+      }
+      // Anders botst customerNumber -> volgende iteratie probeert het volgende nummer
+    }
+  }
+  throw new Error('Kon geen klant aanmaken na meerdere pogingen');
+}
+
 const createBookingSchema = z.object({
   salonId: z.string().uuid(),
   serviceId: z.string().uuid(),
@@ -134,56 +210,12 @@ router.post('/', validate(createBookingSchema), async (req: Request, res: Respon
     const effectiveDuration = empServiceForDuration?.duration ?? service.duration;
     const endTime = minutesToTime(timeToMinutes(startTime) + effectiveDuration);
 
-    // Smart customer dedup: match on email OR phone
-    let customer = await prisma.customer.findFirst({
-      where: {
-        salonId,
-        OR: [
-          { email: customerEmail },
-          ...(customerPhone ? [{ phone: customerPhone }] : []),
-        ],
-      },
+    // Vind of maak de klant aan - kogelvrij tegen dubbele klikken, hoofdletters en races
+    const customer = await findOrCreateCustomer(salonId, {
+      name: customerName,
+      email: customerEmail,
+      phone: customerPhone,
     });
-
-    if (customer) {
-      // Update existing customer with latest info
-      customer = await prisma.customer.update({
-        where: { id: customer.id },
-        data: {
-          name: customerName,
-          email: customerEmail,
-          phone: customerPhone || customer.phone,
-        },
-      });
-    } else {
-      // Generate customer number
-      const lastCustomer = await prisma.customer.findFirst({
-        where: { salonId },
-        orderBy: { createdAt: 'desc' },
-        select: { customerNumber: true },
-      });
-      const nextNum = lastCustomer?.customerNumber
-        ? parseInt(lastCustomer.customerNumber.replace('C', '')) + 1
-        : 1;
-      const customerNumber = `C${String(nextNum).padStart(6, '0')}`;
-
-      // Split name into first/last
-      const nameParts = customerName.trim().split(/\s+/);
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-
-      customer = await prisma.customer.create({
-        data: {
-          salonId,
-          customerNumber,
-          firstName,
-          lastName,
-          name: customerName,
-          email: customerEmail,
-          phone: customerPhone,
-        },
-      });
-    }
 
     // Create booking
     const booking = await prisma.booking.create({
@@ -243,53 +275,12 @@ router.post('/recurring', authenticate, validate(recurringBookingSchema), async 
       return;
     }
 
-    // Smart customer dedup: match on email OR phone
-    let customer = await prisma.customer.findFirst({
-      where: {
-        salonId,
-        OR: [
-          { email: customerEmail },
-          ...(customerPhone ? [{ phone: customerPhone }] : []),
-        ],
-      },
+    // Vind of maak de klant aan - kogelvrij tegen dubbele klikken, hoofdletters en races
+    const customer = await findOrCreateCustomer(salonId, {
+      name: customerName,
+      email: customerEmail,
+      phone: customerPhone,
     });
-
-    if (customer) {
-      customer = await prisma.customer.update({
-        where: { id: customer.id },
-        data: {
-          name: customerName,
-          email: customerEmail,
-          phone: customerPhone || customer.phone,
-        },
-      });
-    } else {
-      const lastCustomer = await prisma.customer.findFirst({
-        where: { salonId },
-        orderBy: { createdAt: 'desc' },
-        select: { customerNumber: true },
-      });
-      const nextNum = lastCustomer?.customerNumber
-        ? parseInt(lastCustomer.customerNumber.replace('C', '')) + 1
-        : 1;
-      const customerNumber = `C${String(nextNum).padStart(6, '0')}`;
-
-      const nameParts = customerName.trim().split(/\s+/);
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-
-      customer = await prisma.customer.create({
-        data: {
-          salonId,
-          customerNumber,
-          firstName,
-          lastName,
-          name: customerName,
-          email: customerEmail,
-          phone: customerPhone,
-        },
-      });
-    }
 
     // Generate dates based on recurring rule
     const dates: string[] = [];
