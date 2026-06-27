@@ -77,14 +77,19 @@ async function findOrCreateCustomer(
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
 
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const last = await prisma.customer.findFirst({
-      where: { salonId },
-      orderBy: { customerNumber: 'desc' },
-      select: { customerNumber: true },
-    });
-    const baseNum = last?.customerNumber ? parseInt(last.customerNumber.replace(/\D/g, '')) || 0 : 0;
-    const customerNumber = `C${String(baseNum + 1 + attempt).padStart(6, '0')}`;
+  // Hoogste bestaande nummer bepalen: negeer NULLs en parse als getal
+  // (string-sortering + NULLS-first zou een te laag nummer geven -> botsingen)
+  const numbered = await prisma.customer.findMany({
+    where: { salonId, customerNumber: { not: null } },
+    select: { customerNumber: true },
+  });
+  const maxNum = numbered.reduce((mx, c) => {
+    const n = parseInt((c.customerNumber || '').replace(/\D/g, '')) || 0;
+    return n > mx ? n : mx;
+  }, 0);
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const customerNumber = `C${String(maxNum + 1 + attempt).padStart(6, '0')}`;
     try {
       return await prisma.customer.create({
         data: { salonId, customerNumber, firstName, lastName, name, email, phone },
