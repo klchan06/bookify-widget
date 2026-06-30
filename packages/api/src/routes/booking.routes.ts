@@ -154,6 +154,10 @@ async function buildEmailData(bookingId: string) {
     include: { employee: true, service: true, customer: true, salon: true },
   });
   if (!booking) return null;
+  // Per-medewerker prijs/duur (override) indien ingesteld, anders de basis-dienst
+  const empService = await prisma.employeeService.findUnique({
+    where: { employeeId_serviceId: { employeeId: booking.employeeId, serviceId: booking.serviceId } },
+  });
   return {
     bookingId: booking.id,
     customerName: booking.customer.name,
@@ -167,11 +171,11 @@ async function buildEmailData(bookingId: string) {
     salonLogo: booking.salon.logoUrl,
     employeeName: booking.employee.name,
     serviceName: booking.service.name,
-    serviceDuration: booking.service.duration,
+    serviceDuration: empService?.duration ?? booking.service.duration,
     date: booking.date,
     startTime: booking.startTime,
     endTime: booking.endTime,
-    price: booking.service.price,
+    price: empService?.price ?? booking.service.price,
     currency: booking.service.currency,
   };
 }
