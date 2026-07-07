@@ -299,6 +299,13 @@ function buildTemplateVars(data: BookingEmailData): Record<string, string> {
 }
 
 async function sendEmail(to: string, subject: string, html: string, ics?: string): Promise<void> {
+  // Sla nep/import-adressen over: die bestaan niet, bouncen en schaden de Brevo-reputatie
+  // (bounce-rate omhoog -> risico op accountblokkade). Bv. berkay.6@import.blessedbarbers.local
+  if (!to || /\.local$/i.test(to.trim()) || /@import\./i.test(to.trim())) {
+    console.log(`[Email] Overgeslagen (nep/lokaal adres): ${to}`);
+    return;
+  }
+
   // 1) Voorkeur: Brevo (HTTPS-API, werkt met Strato-nameservers)
   const brevoKey = process.env.BREVO_API_KEY;
   if (brevoKey) {
