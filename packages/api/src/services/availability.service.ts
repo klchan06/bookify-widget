@@ -116,41 +116,41 @@ export async function getAvailableSlots(params: AvailabilityParams): Promise<Tim
     // Effectieve duur voor deze medewerker (override of basisduur)
     const effectiveDuration = durationByEmp.get(empId) ?? service.duration;
 
-    // Generate slots: stap = behandeltijd, zodat blokken precies aansluiten
-    for (let slotStart = dayStart; slotStart + effectiveDuration <= dayEnd; slotStart += effectiveDuration) {
-      const slotEnd = slotStart + effectiveDuration;
+    // Bouw bezette intervallen (bestaande afspraken + pauzes), gesorteerd op starttijd
+    const busy = [
+      ...existingBookings.map((b: { startTime: string; endTime: string }) => ({
+        start: timeToMinutes(b.startTime),
+        end: timeToMinutes(b.endTime),
+      })),
+      ...breaks.map((b: { startTime: string; endTime: string }) => ({
+        start: timeToMinutes(b.startTime),
+        end: timeToMinutes(b.endTime),
+      })),
+    ].sort((a, b) => a.start - b.start);
 
-      // Check lead time
-      if (slotStart < leadTimeCutoffMinutes) continue;
-
-      // Check if slot overlaps with any break
-      const overlapsBreak = breaks.some((b: { startTime: string; endTime: string }) => {
-        const breakStart = timeToMinutes(b.startTime);
-        const breakEnd = timeToMinutes(b.endTime);
-        return slotStart < breakEnd && slotEnd > breakStart;
-      });
-      if (overlapsBreak) continue;
-
-      // Check if slot overlaps with any existing booking
-      const overlapsBooking = existingBookings.some((b: { startTime: string; endTime: string }) => {
-        const bookingStart = timeToMinutes(b.startTime);
-        const bookingEnd = timeToMinutes(b.endTime);
-        return slotStart < bookingEnd && slotEnd > bookingStart;
-      });
-      if (overlapsBooking) continue;
-
-      // Check if this slot time is already provided by another employee
+    const addSlot = (slotStart: number) => {
       const timeStr = minutesToTime(slotStart);
       const alreadyExists = allSlots.some((s) => s.time === timeStr && s.available);
-
       if (!alreadyExists) {
-        allSlots.push({
-          time: timeStr,
-          available: true,
-          employeeId: empId,
-        });
+        allSlots.push({ time: timeStr, available: true, employeeId: empId });
       }
+    };
+
+    // Genereer slots PER VRIJ INTERVAL: begin direct na elke afspraak/pauze, met de
+    // behandeltijd als stap. Zo sluiten de blokken aan op bestaande afspraken (geen
+    // onnodige gaten) en past een langere dienst zodra er genoeg aaneengesloten ruimte is.
+    const fillInterval = (from: number, until: number) => {
+      const start = Math.max(from, leadTimeCutoffMinutes);
+      for (let slotStart = start; slotStart + effectiveDuration <= until; slotStart += effectiveDuration) {
+        addSlot(slotStart);
+      }
+    };
+    let cursor = dayStart;
+    for (const b of busy) {
+      if (b.start > cursor) fillInterval(cursor, b.start);
+      cursor = Math.max(cursor, b.end);
     }
+    fillInterval(cursor, dayEnd);
   }
 
   // Sort by time
@@ -265,16 +265,18 @@ export async function getAvailableDays(params: AvailableDaysParams): Promise<str
         if (dateStr === todayStr) leadCutoff = now.getHours() * 60 + now.getMinutes() + bookingLeadTime * 60;
 
         const effDuration = durationByEmp.get(empId) ?? service.duration;
-        for (let s = dayStart; s + effDuration <= dayEnd; s += effDuration) {
-          if (s < leadCutoff) continue;
-          const e = s + effDuration;
-          const hitsBreak = empBreaks.some((b) => s < timeToMinutes(b.endTime) && e > timeToMinutes(b.startTime));
-          if (hitsBreak) continue;
-          const hitsBooking = empBookings.some((b) => s < timeToMinutes(b.endTime) && e > timeToMinutes(b.startTime));
-          if (hitsBooking) continue;
-          hasSlot = true;
-          break;
+        // Zelfde vrije-interval-logica als getAvailableSlots: past de dienst in enig vrij gat?
+        const busy = [
+          ...empBookings.map((b) => ({ start: timeToMinutes(b.startTime), end: timeToMinutes(b.endTime) })),
+          ...empBreaks.map((b) => ({ start: timeToMinutes(b.startTime), end: timeToMinutes(b.endTime) })),
+        ].sort((a, b) => a.start - b.start);
+        const fits = (from: number, until: number) => Math.max(from, leadCutoff) + effDuration <= until;
+        let cursor = dayStart;
+        for (const b of busy) {
+          if (b.start > cursor && fits(cursor, b.start)) { hasSlot = true; break; }
+          cursor = Math.max(cursor, b.end);
         }
+        if (!hasSlot && fits(cursor, dayEnd)) hasSlot = true;
         if (hasSlot) break;
       }
 
