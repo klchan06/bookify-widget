@@ -687,6 +687,31 @@ router.put('/:id', authenticate, validate(updateBookingSchema), async (req: Auth
     if (req.body.notes !== undefined) updateData.notes = req.body.notes;
     if (req.body.privateNotes !== undefined) updateData.privateNotes = req.body.privateNotes;
 
+    // Voorkom dubbelboeking bij verplaatsen: blokkeer overlap met een ANDERE afspraak
+    // van dezelfde medewerker (pauze/werktijd blijft vrij, dat mag de kapper zelf bepalen).
+    if (updateData.date || updateData.startTime || updateData.employeeId) {
+      const checkDate = (updateData.date as string) || existing.date;
+      const checkStart = timeToMinutes((updateData.startTime as string) || existing.startTime);
+      const checkEnd = timeToMinutes((updateData.endTime as string) || existing.endTime);
+      const others = await prisma.booking.findMany({
+        where: {
+          id: { not: existing.id },
+          employeeId: effEmpId,
+          date: checkDate,
+          status: { notIn: ['cancelled'] },
+        },
+        select: { startTime: true, endTime: true, customer: { select: { name: true } } },
+      });
+      const clash = others.find((o) => checkStart < timeToMinutes(o.endTime) && checkEnd > timeToMinutes(o.startTime));
+      if (clash) {
+        res.status(400).json({
+          success: false,
+          error: `Dit tijdstip overlapt met een andere afspraak (${clash.startTime}-${clash.endTime}${clash.customer?.name ? ' - ' + clash.customer.name : ''}). Kies een vrij moment.`,
+        });
+        return;
+      }
+    }
+
     const booking = await prisma.booking.update({
       where: { id: req.params.id },
       data: updateData,
